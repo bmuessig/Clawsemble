@@ -9,7 +9,7 @@
 									; this metadata is required and has to be present
 #VERSION		0,2					; version expects an array of major and minor version
 
-.ctv testvar	$2d					; this defines a new constant testvar as $2h
+.ctv testvar	$2d					; this defines a new constant testvar as $2d
 
 .sym main							; main function, required
 	ldc  		42					; load the constant 42 onto the stack
