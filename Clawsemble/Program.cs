@@ -1,12 +1,13 @@
 ﻿using System;
+using System.IO;
 
 namespace Clawsemble
 {
 	class MainClass
 	{
-		public static void Main (string[] args)
+		public static void Main(string[] args)
 		{
-			Console.WriteLine ("Hello World!");
+			Token[] tokens = Tokenizer.Tokenize(File.OpenRead("./Sample01.csm"));
 		}
 	}
 }
