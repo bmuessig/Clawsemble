@@ -78,6 +78,14 @@ namespace Clawsemble
 					FinishToken(tokens, ref type, sb);
 					type = TokenType.ArrayClose;
 					FinishToken(tokens, ref type, sb);
+				} else if (chr == '(') {
+					FinishToken(tokens, ref type, sb);
+					type = TokenType.ParanthesisOpen;
+					FinishToken(tokens, ref type, sb);
+				} else if (chr == ')') {
+					FinishToken(tokens, ref type, sb);
+					type = TokenType.ParanthesisClose;
+					FinishToken(tokens, ref type, sb);
 				} else if (chr == '<') {
 					if (type == TokenType.LessThan) {
 						type = TokenType.BitshiftLeft;
