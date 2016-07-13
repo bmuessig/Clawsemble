@@ -7,12 +7,12 @@
 #COPYRIGHT		"(c) 2016 muessigb"
 
 									; this metadata is required and has to be present
-#VERSION		0:2					; version expects an array of major and minor version
+#VERSION		0,2					; version expects an array of major and minor version
 
-.ctv testvar	278					; this defines a new constant testvar as 278
+.ctv testvar	$2d					; this defines a new constant testvar as $2h
 
 .sym main							; main function, required
-	ldc  		42					; load the constant 42 onto the stack and name it MYVAR
+	ldc  		42					; load the constant 42 onto the stack
 	ldc 		testvar				; load the constant from testvar onto the stack
 	addc		1034				; add 1034 to the value of testvar
 	call		test:0				; call function test, the :0 is optional and specifies the module number
