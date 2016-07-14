@@ -7,7 +7,7 @@ namespace Clawsemble
 {
 	public static class Tokenizer
 	{
-		public static Token[] Tokenize(Stream Stream)
+		public static List<Token> Tokenize(Stream Stream)
 		{
 			var reader = (TextReader)new StreamReader(Stream);
 			var tokens = new List<Token>();
@@ -23,7 +23,7 @@ namespace Clawsemble
 				    || (type == TokenType.CharacterEscape && sb.Length < 1)) {
 					sb.Append(chr);
 				} else if (chr == '\n' || chr == '\r') {
-					if (type == TokenType.CharacterEscape) {
+					if (type == TokenType.CharacterEscape || type == TokenType.Character) {
 						sb.Append(chr);
 						FinishToken(tokens, ref type, sb);
 					} else {
@@ -39,6 +39,9 @@ namespace Clawsemble
 				} else if (chr == '\\') {
 					FinishToken(tokens, ref type, sb);
 					type = TokenType.CharacterEscape;
+				} else if (chr == '%') {
+					FinishToken(tokens, ref type, sb);
+					type = TokenType.Character;
 				} else if (chr == '"') {
 					if (type == TokenType.String) {
 						FinishToken(tokens, ref type, sb);
@@ -168,7 +171,7 @@ namespace Clawsemble
 				
 			reader.Dispose();
 
-			return tokens.ToArray();
+			return tokens;
 		}
 
 		private static void FinishToken(List<Token> Tokens, ref TokenType Type, StringBuilder Builder)

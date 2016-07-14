@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Clawsemble
 {
@@ -7,7 +8,8 @@ namespace Clawsemble
 	{
 		public static void Main(string[] args)
 		{
-			Token[] tokens = Tokenizer.Tokenize(File.OpenRead("./Sample01.csm"));
+			var preproc = new Preprocessor();
+			preproc.DoFile("Sample01.csm");
 		}
 	}
 }

@@ -39,6 +39,9 @@
     <Compile Include="Tokenizer.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenType.cs" />
+    <Compile Include="Preprocessor.cs" />
+    <Compile Include="Constant.cs" />
+    <Compile Include="ConstantType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

@@ -26,6 +26,7 @@ namespace Clawsemble
 		ParanthesisClose,
 		CompilerDirective,
 		String,
+		Character,
 		CharacterEscape,
 		HexadecimalEscape,
 		Word,
