@@ -76,6 +76,9 @@ namespace Clawsemble
 					FinishToken(tokens, ref type, sb);
 					type = TokenType.Seperator;
 					FinishToken(tokens, ref type, sb);
+				} else if (chr == '!') {
+					FinishToken(tokens, ref type, sb);
+					type = TokenType.Not;
 				} else if (chr == '[') {
 					FinishToken(tokens, ref type, sb);
 					type = TokenType.ArrayOpen;
@@ -99,16 +102,23 @@ namespace Clawsemble
 					} else {
 						FinishToken(tokens, ref type, sb);
 						type = TokenType.LessThan;
-						FinishToken(tokens, ref type, sb);
 					}
 				} else if (chr == '=') {
 					if (type == TokenType.Assign) {
 						type = TokenType.Equal;
 						FinishToken(tokens, ref type, sb);
+					} else if (type == TokenType.Not) {
+						type = TokenType.NotEqual;
+						FinishToken(tokens, ref type, sb);
+					} else if (type == TokenType.GreaterThan) {
+						type = TokenType.GreaterEqual;
+						FinishToken(tokens, ref type, sb);
+					} else if (type == TokenType.LessThan) {
+						type = TokenType.LessEqual;
+						FinishToken(tokens, ref type, sb);
 					} else {
 						FinishToken(tokens, ref type, sb);
 						type = TokenType.Assign;
-						FinishToken(tokens, ref type, sb);
 					}
 				} else if (chr == '>') {
 					if (type == TokenType.GreaterThan) {
@@ -117,7 +127,6 @@ namespace Clawsemble
 					} else {
 						FinishToken(tokens, ref type, sb);
 						type = TokenType.LessThan;
-						FinishToken(tokens, ref type, sb);
 					}
 				} else if (chr == '&') {
 					if (type == TokenType.BitwiseAnd) {

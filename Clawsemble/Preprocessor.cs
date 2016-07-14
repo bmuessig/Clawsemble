@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Collections;
 
 namespace Clawsemble
 {
@@ -31,6 +32,7 @@ namespace Clawsemble
 		{
 			List<Token> ftokens = Tokenizer.Tokenize(File.OpenRead(Filename));
 			string directive = "";
+			int ifdepth = 0;
 
 			for (int i = 0; i < ftokens.Count; i++) {
 				if (ftokens[i].Type == TokenType.PreprocessorDirective) {
@@ -48,7 +50,11 @@ namespace Clawsemble
 					} else if (directive == "ifndef" || directive == "ifnotdefined") {
 						
 					} else if (directive == "if") {
-						
+						ifdepth++;
+					} else if (directive == "elif" || directive == "elseif") {
+
+					} else if (directive == "endif") {
+						ifdepth--;
 					} else if (directive == "def" || directive == "define") {
 						string key = "", value = "";
 						TokenType type = TokenType.Empty;
@@ -82,10 +88,40 @@ namespace Clawsemble
 								throw new Exception("Expected word!");
 						} else
 							throw new Exception("Unexpected end of file!");
-					}
+					} else
+						throw new Exception("Unknown compiler directive!");
 				}
 			}
 		}
+
+		private long EvaluateExpression(int Pointer, List<Token> Tokens)
+		{
+			var stack = new Stack<Constant>();
+
+			for (;; Pointer++) {
+				if (Tokens[Pointer].Type == TokenType.Break) {
+					break;
+				} else if (Tokens[Pointer].Type == TokenType.Number ||
+				           Tokens[Pointer].Type == TokenType.Character ||
+				           Tokens[Pointer].Type == TokenType.HexadecimalEscape) {
+					stack.Push(new Constant(Tokens[Pointer]));
+				} else if (Tokens[Pointer].Type == TokenType.Word) {
+					if (Constants.ContainsKey(Tokens[Pointer].Content.Trim())) {
+						Constant cvar = Constants[Tokens[Pointer].Content.Trim()];
+						if (cvar.Type != ConstantType.Empty)
+							stack.Push(cvar);
+						else
+							throw new Exception("Constant is empty!");
+					} else
+						throw new Exception("Constant not found!");
+				} else if (Tokens[Pointer].Type == TokenType.ParanthesisOpen) {
+
+				} else {
+
+				}
+			}
+		}
+
 	}
 }
 
