@@ -6,7 +6,9 @@
 #AUTHOR			"muessigb"
 #COPYRIGHT		"(c) 2016 muessigb"
 
-#define test 124
+#define test        124
+#define test_1      $ffd00
+#define test___2    %f
 
 									; this metadata is required and has to be present
 #VERSION		0,2					; version expects an array of major and minor version

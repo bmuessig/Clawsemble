@@ -18,10 +18,13 @@ namespace Clawsemble
 			while (Stream.Position < Stream.Length) {
 				char chr = (char)reader.Read();
 
-				if ((type == TokenType.Comment && chr != '\r' && chr != '\n')
-				    || (type == TokenType.String && chr != '"' && chr != '\r' && chr != '\n')
-				    || (type == TokenType.CharacterEscape && sb.Length < 1)) {
+				if ((type == TokenType.Comment && chr != '\r' && chr != '\n') ||
+				    (type == TokenType.String && chr != '"' && chr != '\r' && chr != '\n') ||
+				    (type == TokenType.CharacterEscape && sb.Length < 1) ||
+				    (type == TokenType.Character && sb.Length < 1)) {
 					sb.Append(chr);
+					if (type == TokenType.CharacterEscape || type == TokenType.Character)
+						FinishToken(tokens, ref type, sb);
 				} else if (chr == '\n' || chr == '\r') {
 					if (type == TokenType.CharacterEscape || type == TokenType.Character) {
 						sb.Append(chr);
