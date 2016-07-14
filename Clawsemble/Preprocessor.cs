@@ -96,7 +96,8 @@ namespace Clawsemble
 
 		private long EvaluateExpression(int Pointer, List<Token> Tokens)
 		{
-			var stack = new Stack<Constant>();
+			var nbstack = new Stack<Constant>();
+			var opstack = new Stack<Token>();
 
 			for (;; Pointer++) {
 				if (Tokens[Pointer].Type == TokenType.Break) {
@@ -104,22 +105,54 @@ namespace Clawsemble
 				} else if (Tokens[Pointer].Type == TokenType.Number ||
 				           Tokens[Pointer].Type == TokenType.Character ||
 				           Tokens[Pointer].Type == TokenType.HexadecimalEscape) {
-					stack.Push(new Constant(Tokens[Pointer]));
+					nbstack.Push(new Constant(Tokens[Pointer]));
 				} else if (Tokens[Pointer].Type == TokenType.Word) {
 					if (Constants.ContainsKey(Tokens[Pointer].Content.Trim())) {
 						Constant cvar = Constants[Tokens[Pointer].Content.Trim()];
 						if (cvar.Type != ConstantType.Empty)
-							stack.Push(cvar);
+							nbstack.Push(cvar);
 						else
 							throw new Exception("Constant is empty!");
 					} else
 						throw new Exception("Constant not found!");
 				} else if (Tokens[Pointer].Type == TokenType.ParanthesisOpen) {
-
+					opstack.Push(Token[Pointer]);
+				} else if (Tokens[Pointer].Type == TokenType.ParanthesisClose) {
+					
 				} else {
 
 				}
 			}
+		}
+
+		private int OpPrecedence(Token Token)
+		{
+			if (Token.Type == TokenType.Plus || Token.Type == TokenType.Minus ||
+			    Token.Type == TokenType.Not || Token.Type == TokenType.BitwiseNot)
+				return 1;
+			if (Token.Type == TokenType.Multiply || Token.Type == TokenType.Divide ||
+			    Token.Type == TokenType.Modulo)
+				return 2;
+			if (Token.Type == TokenType.Plus || Token.Type == TokenType.Minus)
+				return 3;
+			if (Token.Type == TokenType.BitshiftLeft || Token.Type == TokenType.BitshiftRight)
+				return 4;
+			if (Token.Type == TokenType.GreaterThan || Token.Type == TokenType.LessThan ||
+			    Token.Type == TokenType.GreaterEqual || Token.Type == TokenType.LessEqual)
+				return 5;
+			if (Token.Type == TokenType.Equal || Token.Type == TokenType.NotEqual)
+				return 6;
+			if (Token.Type == TokenType.BitwiseAnd)
+				return 7;
+			if (Token.Type == TokenType.BitwiseXOr)
+				return 8;
+			if (Token.Type == TokenType.BitwiseOr)
+				return 9;
+			if (Token.Type == TokenType.LogicalAnd)
+				return 10;
+			if (Token.Type == TokenType.LogicalOr)
+				return 11;
+			return 0;
 		}
 
 	}

@@ -157,8 +157,20 @@ namespace Clawsemble
 					type = TokenType.Multiply;
 					FinishToken(tokens, ref type, sb);
 				} else if (chr == '/') {
+					if (type == TokenType.Divide) {
+						type = TokenType.Modulo;
+						FinishToken(tokens, ref type, sb);
+					} else {
+						FinishToken(tokens, ref type, sb);
+						type = TokenType.Divide;
+					}
+				} else if (chr == '^') {
 					FinishToken(tokens, ref type, sb);
-					type = TokenType.Divide;
+					type = TokenType.BitwiseXOr;
+					FinishToken(tokens, ref type, sb);
+				} else if (chr == '~') {
+					FinishToken(tokens, ref type, sb);
+					type = TokenType.BitwiseNot;
 					FinishToken(tokens, ref type, sb);
 				} else if (chr >= '0' && chr <= '9') {
 					if (type == TokenType.Empty || type == TokenType.Minus || type == TokenType.Plus) {
