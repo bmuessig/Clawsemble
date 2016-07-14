@@ -2,11 +2,11 @@
 
 namespace Clawsemble
 {
-	public enum ConstantType
-	{
-		Empty,
-		String,
-		Numeric
-	}
+    public enum ConstantType
+    {
+        Empty,
+        String,
+        Numeric
+    }
 }
 
