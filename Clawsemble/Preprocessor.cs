@@ -90,6 +90,7 @@ namespace Clawsemble
                                 throw new Exception("Expected word!");
                         } else
                             throw new Exception("Unexpected end of file!");
+                        // TODO: Add else-if's with title, author, etc.
                     } else
                         throw new Exception("Unknown compiler directive!");
                 }
