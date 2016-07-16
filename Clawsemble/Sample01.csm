@@ -1,7 +1,7 @@
-﻿.CWX:16								; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
-									; everything's case insensitive
+﻿.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
+				; everything's case insensitive
 
-									; this metadata is optional and will be imported into the executable
+				; this metadata is optional and will be imported into the executable
 #TITLE			"Sample program"
 #AUTHOR			"muessigb"
 #COPYRIGHT		"(c) 2016 muessigb"
@@ -13,18 +13,18 @@
 
 #undefine test___2
 
-									; this metadata is required and has to be present
-#VERSION		0,2					; version expects an array of major and minor version
+				; this metadata is required and has to be present
+#VERSION		0,2		; version expects an array of major and minor version
 
-.ctv testvar	$2d					; this defines a new constant testvar as $2d
+.ctv testvar	$2d			; this defines a new constant testvar as $2d
 
-.sym main							; main function, required
-	ldc  		42					; load the constant 42 onto the stack
-	ldc 		testvar				; load the constant from testvar onto the stack
-	addc		1034				; add 1034 to the value of testvar
-	call		test:0				; call function test, the :0 is optional and specifies the module number
+.sym main				; main function, required
+	ldc  		42			; load the constant 42 onto the stack
+	ldc 		testvar			; load the constant from testvar onto the stack
+	addc		1034			; add 1034 to the value of testvar
+	call		test:0			; call function test, the :0 is optional and specifies the module number
 
-.sym test:1							; the :1 is optional and specifies the function index but is required for libraries and callbacks
-	ld			1					; load the 42 from earlier
-	mul								; multiplies the sum from earlier with 42
-	ret								; ret at the end of symbols is totally optional
+.sym test:1				; the :1 is optional and specifies the function index but is required for libraries and callbacks
+	ld			1		; load the 42 from earlier
+	mul					; multiplies the sum from earlier with 42
+	ret					; ret at the end of symbols is totally optional

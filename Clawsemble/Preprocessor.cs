@@ -46,15 +46,17 @@ namespace Clawsemble
                         } else
                             throw new Exception("Unexpected end of file!");
                     } else if (directive == "ifdef" || directive == "ifdefined") {
-
+                        // TODO
                     } else if (directive == "ifndef" || directive == "ifnotdefined") {
-						
+                        // TODO
                     } else if (directive == "if") {
                         ifdepth++;
+                        // TODO
                     } else if (directive == "elif" || directive == "elseif") {
-
+                        // TODO
                     } else if (directive == "endif") {
                         ifdepth--;
+                        // TODO
                     } else if (directive == "def" || directive == "define") {
                         string key = "", value = "";
                         TokenType type = TokenType.Empty;
@@ -94,9 +96,9 @@ namespace Clawsemble
             }
         }
 
-        private long EvaluateExpression(int Pointer, List<Token> Tokens)
+        private Constant EvaluateExpression(int Pointer, List<Token> Tokens)
         {
-            var nbstack = new Stack<Constant>();
+            var valstack = new Stack<Constant>();
             var opstack = new Stack<Token>();
 
             for (;; Pointer++) {
@@ -105,28 +107,147 @@ namespace Clawsemble
                 } else if (Tokens[Pointer].Type == TokenType.Number ||
                            Tokens[Pointer].Type == TokenType.Character ||
                            Tokens[Pointer].Type == TokenType.HexadecimalEscape) {
-                    nbstack.Push(new Constant(Tokens[Pointer]));
+                    valstack.Push(new Constant(Tokens[Pointer]));
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
                     if (Constants.ContainsKey(Tokens[Pointer].Content.Trim())) {
                         Constant cvar = Constants[Tokens[Pointer].Content.Trim()];
                         if (cvar.Type != ConstantType.Empty)
-                            nbstack.Push(cvar);
+                            valstack.Push(cvar);
                         else
                             throw new Exception("Constant is empty!");
                     } else
                         throw new Exception("Constant not found!");
                 } else if (Tokens[Pointer].Type == TokenType.ParanthesisOpen) {
-                    opstack.Push(Token[Pointer]);
+                    opstack.Push(Tokens[Pointer]);
                 } else if (Tokens[Pointer].Type == TokenType.ParanthesisClose) {
                     while (opstack.Count > 0) {
-                        Token optok = opstack.Pop();
-                        if (optok.Type == TokenType.ParanthesisClose) {
+                        if (opstack.Peek().Type == TokenType.ParanthesisOpen) {
+                            opstack.Pop();
                             break;
-                        }
+                        } else
+                            ExecOp(opstack.Pop(), valstack);
                     }
                 } else {
-
+                    // TODO: precedence checking and stuff
                 }
+            }
+
+            if (opstack.Count > 0) {
+                while (opstack.Count > 0) {
+                    Token optok = opstack.Pop();
+                    if (optok.Type == TokenType.ParanthesisOpen)
+                        throw new Exception("Missmatched paranthesis!");
+                    else if (!IsOp(optok))
+                        throw new Exception("Invalid non-op token in expression!");
+                    else
+                        ExecOp(optok, valstack);
+                }
+            }
+            if (valstack.Count > 1)
+                throw new Exception("Invalid expression!");
+            else if (valstack.Count == 0)
+                valstack.Push(new Constant(0));
+            if (valstack.Peek().Type == ConstantType.Empty)
+                throw new Exception("Expression result is invalid!");
+
+            return valstack.Pop(); // result can be a number or string
+        }
+
+        private void ExecOp(Token Token, Stack<Constant> Stack)
+        {
+            if (Token.Type == TokenType.BitwiseNot || Token.Type == TokenType.Not) {
+                if (Stack.Count < 1)
+                    throw new Exception("Stack underflow!");
+                Constant ct0 = Stack.Pop();
+
+                if (Token.Type == TokenType.BitwiseNot)
+                    Stack.Push(new Constant(~ct0.Number));
+                else if (Token.Type == TokenType.Not)
+                    Stack.Push(new Constant((ct0.Number > 0) ? 0 : 1));
+                return;
+            } else {
+                if (Stack.Count < 2)
+                    throw new Exception("Stack underflow!");
+                Constant ct0 = Stack.Pop(), ct1 = Stack.Pop();
+                if (ct0.Type == ConstantType.String || ct1.Type == ConstantType.String) {
+                    if (ct0.Type == ConstantType.Numeric)
+                        ct0 = new Constant(ct0.Number.ToString());
+                    else if (ct1.Type == ConstantType.Numeric)
+                        ct1 = new Constant(ct1.Number.ToString());
+                    
+                    if (Token.Type == TokenType.Equal)
+                        Stack.Push(new Constant((ct0.String == ct1.String) ? 1 : 0));
+                    else if (Token.Type == TokenType.NotEqual)
+                        Stack.Push(new Constant((ct0.String != ct1.String) ? 1 : 0));
+                    else if (Token.Type == TokenType.Plus)
+                        Stack.Push(new Constant(ct1.String + ct0.String));
+                    else if (Token.Type == TokenType.Minus) {
+                        if (ct1.String.EndsWith(ct0.String)) {
+                            Stack.Push(new Constant(ct1.String.Substring(0, ct1.String.LastIndexOf(ct0.String))));
+                        } else
+                            Stack.Push(ct1);
+                    } else if (Token.Type == TokenType.Divide)
+                        Stack.Push(new Constant(ct1.String.Replace(ct0.String, "")));
+                    else
+                        throw new Exception("Invalid operation on string!");
+                } else if (ct0.Type == ConstantType.Numeric && ct1.Type == ConstantType.Numeric) {
+                    switch (Token.Type) {
+                    case TokenType.BitshiftLeft:
+                        Stack.Push(new Constant(ct1.Number << (int)ct0.Number));
+                        return;
+                    case TokenType.BitshiftRight:
+                        Stack.Push(new Constant(ct1.Number >> (int)ct0.Number));
+                        return;
+                    case TokenType.BitwiseAnd:
+                        Stack.Push(new Constant(ct1.Number & ct0.Number));
+                        return;
+                    case TokenType.BitwiseOr:
+                        Stack.Push(new Constant(ct1.Number | ct0.Number));
+                        return;
+                    case TokenType.BitwiseXOr:
+                        Stack.Push(new Constant(ct1.Number ^ ct0.Number));
+                        return;
+                    case TokenType.Divide:
+                        Stack.Push(new Constant(ct1.Number / ct0.Number));
+                        return;
+                    case TokenType.GreaterEqual:
+                        Stack.Push(new Constant((ct1.Number >= ct0.Number) ? 1 : 0));
+                        return;
+                    case TokenType.GreaterThan:
+                        Stack.Push(new Constant((ct1.Number > ct0.Number) ? 1 : 0));
+                        return;
+                    case TokenType.LessEqual:
+                        Stack.Push(new Constant((ct1.Number <= ct0.Number) ? 1 : 0));
+                        return;
+                    case TokenType.LessThan:
+                        Stack.Push(new Constant((ct1.Number < ct0.Number) ? 1 : 0));
+                        return;
+                    case TokenType.LogicalAnd:
+                        Stack.Push(new Constant(((ct1.Number > 0) && (ct0.Number > 0)) ? 1 : 0));
+                        return;
+                    case TokenType.LogicalOr:
+                        Stack.Push(new Constant(((ct1.Number > 0) || (ct0.Number > 0)) ? 1 : 0));
+                        return;
+                    case TokenType.Minus:
+                        Stack.Push(new Constant(ct1.Number - ct0.Number));
+                        return;
+                    case TokenType.Modulo:
+                        Stack.Push(new Constant(ct1.Number % ct0.Number));
+                        return;
+                    case TokenType.Multiply:
+                        Stack.Push(new Constant(ct1.Number * ct0.Number));
+                        return;
+                    case TokenType.NotEqual:
+                        Stack.Push(new Constant((ct1.Number != ct0.Number) ? 1 : 0));
+                        return;
+                    case TokenType.Plus:
+                        Stack.Push(new Constant(ct1.Number + ct0.Number));
+                        return;
+                    default:
+                        return;
+                    }
+                } else
+                    throw new Exception("Type missmatch!");
             }
         }
 

@@ -13,6 +13,18 @@ namespace Clawsemble
             Type = ConstantType.Empty;
         }
 
+        public Constant(string String)
+        {
+            this.String = String;
+            Type = ConstantType.String;
+        }
+
+        public Constant(long Number)
+        {
+            this.Number = Number;
+            Type = ConstantType.Numeric;
+        }
+
         public Constant(Token Token)
             : this(Token.Type, Token.Content)
         {
