@@ -6,6 +6,8 @@ namespace Clawsemble
     {
         public TokenType Type;
         public string Content;
+        public uint File;
+        public uint Line;
     }
 }
 

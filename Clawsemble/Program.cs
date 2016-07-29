@@ -10,6 +10,7 @@ namespace Clawsemble
         {
             var preproc = new Preprocessor();
             preproc.DoFile("Sample01.csm");
+            Console.Write(preproc.Tokens.Count.ToString());
         }
     }
 }

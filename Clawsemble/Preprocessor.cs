@@ -8,6 +8,7 @@ namespace Clawsemble
     public class Preprocessor
     {
         public List<Token> Tokens;
+        public List<string> Files;
         public Dictionary<string, string> Meta;
         public Dictionary<string, string> Defines;
         public Dictionary<string, Constant> Constants;
@@ -15,6 +16,7 @@ namespace Clawsemble
         public Preprocessor()
         {
             Tokens = new List<Token>();
+            Files = new List<string>();
             Meta = new Dictionary<string, string>();
             Defines = new Dictionary<string, string>();
             Constants = new Dictionary<string, Constant>();
@@ -23,16 +25,27 @@ namespace Clawsemble
         public void Clear()
         {
             Tokens.Clear();
+            Files.Clear();
             Meta.Clear();
             Defines.Clear();
             Constants.Clear();
         }
 
+        public CompileContext Export()
+        {
+            // TODO
+            return new CompileContext();
+        }
+
         public void DoFile(string Filename)
         {
+            if (!File.Exists(Filename))
+                throw new FileNotFoundException("Included file not found!", Filename);
             List<Token> ftokens = Tokenizer.Tokenize(File.OpenRead(Filename));
             string directive = "";
             int ifdepth = 0;
+
+            Files.Add(Filename);
 
             for (int i = 0; i < ftokens.Count; i++) {
                 if (ftokens[i].Type == TokenType.PreprocessorDirective) {
@@ -90,20 +103,60 @@ namespace Clawsemble
                                 throw new Exception("Expected word!");
                         } else
                             throw new Exception("Unexpected end of file!");
-                        // TODO: Add else-if's with title, author, etc.
                     } else
-                        throw new Exception("Unknown compiler directive!");
+                        throw new Exception("Unknown preprocessor directive!");
+                } else if (ftokens[i].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
+                    Constant eval = EvaluateExpression(ref i, ftokens);
+                    if (eval.Type == ConstantType.Numeric) {
+                        Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
+                    } else if (eval.Type == ConstantType.String) {
+                        Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String });
+                    } else
+                        throw new Exception("Empty expression!");
+                } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
+                           ftokens[i].Type == TokenType.HexadecimalEscape) {
+                    Constant eval;
+                    if (Constant.TryParse(ftokens[i], out eval)) {
+                        Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
+                            Line = ftokens[i].Line, File = (uint)Files.Count
+                        });
+                    } else
+                        throw new Exception("Cannot parse constant!");
+                } else if (ftokens[i].Type == TokenType.Word) {
+                    if (Constants.ContainsKey(ftokens[i].Content)) {
+                        Constant eval = Constants[ftokens[i].Content];
+
+                        if (eval.Type == ConstantType.Numeric) {
+                            Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
+                        } else if (eval.Type == ConstantType.String)
+                            Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String });
+                    } else { // if the word is not resolvable, add it again
+                        Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
+                            Line = ftokens[i].Line, File = (uint)Files.Count
+                        });
+                    }
+                } else if (ftokens[i].Type == TokenType.Break && Tokens.Count > 0) {
+                    if (Tokens[Tokens.Count - 1].Type != TokenType.Break) {
+                        Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
+                            Line = ftokens[i].Line, File = (uint)Files.Count
+                        });
+                    } // else drop it as we don't want newlines following each other
+                } else if (ftokens[i].Type != TokenType.Comment && ftokens[i].Type != TokenType.CharacterEscape) {
+                    // we cannot deal with the token just yet
+                    Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
+                        Line = ftokens[i].Line, File = (uint)Files.Count
+                    });
                 }
             }
         }
 
-        private Constant EvaluateExpression(int Pointer, List<Token> Tokens)
+        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens)
         {
             var valstack = new Stack<Constant>();
             var opstack = new Stack<Token>();
 
             for (;; Pointer++) {
-                if (Tokens[Pointer].Type == TokenType.Break) {
+                if (Tokens[Pointer].Type == TokenType.Break || Tokens[Pointer].Type == TokenType.Seperator) {
                     break;
                 } else if (Tokens[Pointer].Type == TokenType.Number ||
                            Tokens[Pointer].Type == TokenType.Character ||
