@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Clawsemble
 {
@@ -9,13 +10,11 @@ namespace Clawsemble
             
         }
 
-
-        public static void Compile(Preprocessor Context)
+        public static void Compile(List<Token> Tokens, List<string>Files)
         {
 
 
         }
-
 
         /*
          } else if (directive == "mod" || directive == "module") {

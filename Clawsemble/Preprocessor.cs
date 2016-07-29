@@ -9,7 +9,6 @@ namespace Clawsemble
     {
         public List<Token> Tokens;
         public List<string> Files;
-        public Dictionary<string, string> Meta;
         public Dictionary<string, string> Defines;
         public Dictionary<string, Constant> Constants;
 
@@ -17,7 +16,6 @@ namespace Clawsemble
         {
             Tokens = new List<Token>();
             Files = new List<string>();
-            Meta = new Dictionary<string, string>();
             Defines = new Dictionary<string, string>();
             Constants = new Dictionary<string, Constant>();
         }
@@ -26,15 +24,8 @@ namespace Clawsemble
         {
             Tokens.Clear();
             Files.Clear();
-            Meta.Clear();
             Defines.Clear();
             Constants.Clear();
-        }
-
-        public CompileContext Export()
-        {
-            // TODO
-            return new CompileContext();
         }
 
         public void DoFile(string Filename)
@@ -55,9 +46,9 @@ namespace Clawsemble
                             if (ftokens[i + 1].Type == TokenType.String) {
                                 DoFile(ftokens[++i].Content);
                             } else
-                                throw new Exception("Expected string!");
+                                throw new CodeError("String expected", ftokens[i].Type, ftokens[i + 1].Line, Filename);
                         } else
-                            throw new Exception("Unexpected end of file!");
+                            throw new CodeError("Unexpected end of file", ftokens[i].Line, Filename);
                     } else if (directive == "ifdef" || directive == "ifdefined") {
                         // TODO
                     } else if (directive == "ifndef" || directive == "ifnotdefined") {
@@ -77,7 +68,7 @@ namespace Clawsemble
                             if (ftokens[i + 1].Type == TokenType.Word)
                                 key = ftokens[++i].Content.Trim();
                             else
-                                throw new Exception("Expected word!");
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i].Type, ftokens[i + 1].Line, Filename);
                             if (ftokens[i + 1].Type == TokenType.String ||
                                 ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
                                 ftokens[i + 1].Type == TokenType.Character ||
@@ -89,9 +80,9 @@ namespace Clawsemble
                             if (ftokens[i + 1].Type == TokenType.Word)
                                 key = ftokens[++i].Content.Trim();
                             else
-                                throw new Exception("Expected word!");
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i].Type, ftokens[i + 1].Line, Filename);
                         } else
-                            throw new Exception("Unexpected end of file!");
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
 						
                         Constants.Add(key, new Constant(type, value));
                     } else if (directive == "undef" || directive == "undefine") {
@@ -100,19 +91,19 @@ namespace Clawsemble
                                 if (Constants.ContainsKey(ftokens[i].Content.Trim()))
                                     Constants.Remove(ftokens[i].Content.Trim());
                             } else
-                                throw new Exception("Expected word!");
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i].Type, ftokens[i + 1].Line, Filename);
                         } else
-                            throw new Exception("Unexpected end of file!");
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
                     } else
-                        throw new Exception("Unknown preprocessor directive!");
+                        throw new CodeError(CodeErrorType.UnknownPreprocDir, ftokens[i].Type, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
-                    Constant eval = EvaluateExpression(ref i, ftokens);
+                    Constant eval = EvaluateExpression(ref i, ftokens, Filename);
                     if (eval.Type == ConstantType.Numeric) {
                         Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
                     } else if (eval.Type == ConstantType.String) {
                         Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String });
                     } else
-                        throw new Exception("Empty expression!");
+                        throw new CodeError(CodeErrorType.EmptyExpression, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
                            ftokens[i].Type == TokenType.HexadecimalEscape) {
                     Constant eval;
@@ -121,7 +112,7 @@ namespace Clawsemble
                             Line = ftokens[i].Line, File = (uint)Files.Count
                         });
                     } else
-                        throw new Exception("Cannot parse constant!");
+                        throw new CodeError(CodeErrorType.ConstantInvalid, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.Word) {
                     if (Constants.ContainsKey(ftokens[i].Content)) {
                         Constant eval = Constants[ftokens[i].Content];
@@ -150,7 +141,7 @@ namespace Clawsemble
             }
         }
 
-        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens)
+        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens, string Filename)
         {
             var valstack = new Stack<Constant>();
             var opstack = new Stack<Token>();
@@ -160,7 +151,8 @@ namespace Clawsemble
                     break;
                 } else if (Tokens[Pointer].Type == TokenType.Number ||
                            Tokens[Pointer].Type == TokenType.Character ||
-                           Tokens[Pointer].Type == TokenType.HexadecimalEscape) {
+                           Tokens[Pointer].Type == TokenType.HexadecimalEscape ||
+                           Tokens[Pointer].Type == TokenType.String) {
                     valstack.Push(new Constant(Tokens[Pointer]));
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
                     if (Constants.ContainsKey(Tokens[Pointer].Content.Trim())) {
@@ -168,9 +160,9 @@ namespace Clawsemble
                         if (cvar.Type != ConstantType.Empty)
                             valstack.Push(cvar);
                         else
-                            throw new Exception("Constant is empty!");
+                            throw new CodeError(CodeErrorType.ConstantEmpty, Tokens[Pointer].Line, Filename);
                     } else
-                        throw new Exception("Constant not found!");
+                        throw new CodeError(CodeErrorType.ConstantNotFound, Tokens[Pointer].Line, Filename);
                 } else if (Tokens[Pointer].Type == TokenType.ParanthesisOpen) {
                     opstack.Push(Tokens[Pointer]);
                 } else if (Tokens[Pointer].Type == TokenType.ParanthesisClose) {
@@ -181,9 +173,18 @@ namespace Clawsemble
                         } else
                             ExecOp(opstack.Pop(), valstack);
                     }
-                } else {
-                    // TODO: precedence checking and stuff
-                }
+                } else if (IsOp(Tokens[Pointer])) {
+                    int stackop = OpPrecedence(opstack.Peek()), currop = OpPrecedence(Tokens[Pointer]);
+
+                    if (stackop > currop) {
+
+                    } else if (stackop < currop) {
+
+                    } else { // both are equal
+
+                    }
+                } else
+                    throw new CodeError(CodeErrorType.UnexpectedToken, Tokens[Pointer].Type, Tokens[Pointer].Line, Filename);
             }
 
             if (opstack.Count > 0) {
