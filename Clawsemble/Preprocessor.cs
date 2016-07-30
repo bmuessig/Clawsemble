@@ -96,11 +96,16 @@ namespace Clawsemble
                     } else
                         throw new CodeError(CodeErrorType.UnknownPreprocDir, ftokens[i].Type, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
+                    int origi = i;
                     Constant eval = EvaluateExpression(ref i, ftokens, Filename);
                     if (eval.Type == ConstantType.Numeric) {
-                        Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
+                        Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
+                            Line = (uint)origi, File = (uint)Files.Count
+                        });
                     } else if (eval.Type == ConstantType.String) {
-                        Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String });
+                        Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
+                            Line = (uint)origi, File = (uint)Files.Count
+                        });
                     } else
                         throw new CodeError(CodeErrorType.EmptyExpression, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
@@ -117,9 +122,13 @@ namespace Clawsemble
                         Constant eval = Defines[ftokens[i].Content];
 
                         if (eval.Type == ConstantType.Numeric) {
-                            Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
+                            Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
+                                Line = ftokens[i].Line, File = (uint)Files.Count
+                            });
                         } else if (eval.Type == ConstantType.String)
-                            Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String });
+                            Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
+                                Line = ftokens[i].Line, File = (uint)Files.Count
+                            });
                     } else { // if the word is not resolvable, add it again
                         Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
                             Line = ftokens[i].Line, File = (uint)Files.Count

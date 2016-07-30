@@ -1,4 +1,8 @@
-﻿.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
+﻿-25 + 26
+
+
+
+.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
 
 				; this metadata is optional and will be imported into the executable
@@ -29,3 +33,7 @@
 	ld			1		; load the 42 from earlier
 	mul					; multiplies the sum from earlier with 42
 	ret					; ret at the end of symbols is totally optional
+
+.sym expr_test:23+5
+	ld		233345 & (1 << 4)
+	mulc		-25 + 26

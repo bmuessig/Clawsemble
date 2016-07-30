@@ -9,15 +9,14 @@ namespace Clawsemble
     {
         public static List<Token> Tokenize(Stream Stream)
         {
-            var reader = (TextReader)new StreamReader(Stream);
+            var reader = new StreamReader(Stream);
             var tokens = new List<Token>();
 
             var sb = new StringBuilder();
             var type = TokenType.Empty;
-
             uint line = 1;
 
-            while (Stream.Position < Stream.Length) {
+            while (!reader.EndOfStream) {
                 char chr = (char)reader.Read();
 
                 if ((type == TokenType.Comment && chr != '\r' && chr != '\n') ||
@@ -200,8 +199,10 @@ namespace Clawsemble
                 }
             }
 				
-            reader.Dispose();
+            // reader.Dispose();
+            Stream.Dispose();
 
+            tokens.Add(new Token() { Type = TokenType.Break, Line = line, File = 0 });
             return tokens;
         }
 
