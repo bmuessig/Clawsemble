@@ -9,15 +9,13 @@ namespace Clawsemble
     {
         public List<Token> Tokens;
         public List<string> Files;
-        public Dictionary<string, string> Defines;
-        public Dictionary<string, Constant> Constants;
+        public Dictionary<string, Constant> Defines;
 
         public Preprocessor()
         {
             Tokens = new List<Token>();
             Files = new List<string>();
-            Defines = new Dictionary<string, string>();
-            Constants = new Dictionary<string, Constant>();
+            Defines = new Dictionary<string, Constant>();
         }
 
         public void Clear()
@@ -25,7 +23,6 @@ namespace Clawsemble
             Tokens.Clear();
             Files.Clear();
             Defines.Clear();
-            Constants.Clear();
         }
 
         public void DoFile(string Filename)
@@ -62,8 +59,9 @@ namespace Clawsemble
                         ifdepth--;
                         // TODO
                     } else if (directive == "def" || directive == "define") {
-                        string key = "", value = "";
-                        TokenType type = TokenType.Empty;
+                        string key = "";
+                        Constant value = new Constant();
+                        // TokenType type = TokenType.Empty;
                         if (i + 2 < ftokens.Count) {
                             if (ftokens[i + 1].Type == TokenType.Word)
                                 key = ftokens[++i].Content.Trim();
@@ -72,9 +70,10 @@ namespace Clawsemble
                             if (ftokens[i + 1].Type == TokenType.String ||
                                 ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
                                 ftokens[i + 1].Type == TokenType.Character ||
-                                ftokens[i + 1].Type == TokenType.Number) {
-                                value = ftokens[++i].Content;
-                                type = ftokens[i].Type;
+                                ftokens[i + 1].Type == TokenType.Number ||
+                                ftokens[i + 1].Type == TokenType.Word || ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
+                                i++;
+                                value = EvaluateExpression(ref i, ftokens, Filename);
                             }
                         } else if (i + 1 < ftokens.Count) {
                             if (ftokens[i + 1].Type == TokenType.Word)
@@ -84,12 +83,12 @@ namespace Clawsemble
                         } else
                             throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
 						
-                        Constants.Add(key, new Constant(type, value));
+                        Defines.Add(key, value);
                     } else if (directive == "undef" || directive == "undefine") {
                         if (i + 1 < ftokens.Count) {
                             if (ftokens[++i].Type == TokenType.Word) {
-                                if (Constants.ContainsKey(ftokens[i].Content.Trim()))
-                                    Constants.Remove(ftokens[i].Content.Trim());
+                                if (Defines.ContainsKey(ftokens[i].Content.Trim()))
+                                    Defines.Remove(ftokens[i].Content.Trim());
                             } else
                                 throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i].Type, ftokens[i + 1].Line, Filename);
                         } else
@@ -114,8 +113,8 @@ namespace Clawsemble
                     } else
                         throw new CodeError(CodeErrorType.ConstantInvalid, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.Word) {
-                    if (Constants.ContainsKey(ftokens[i].Content)) {
-                        Constant eval = Constants[ftokens[i].Content];
+                    if (Defines.ContainsKey(ftokens[i].Content)) {
+                        Constant eval = Defines[ftokens[i].Content];
 
                         if (eval.Type == ConstantType.Numeric) {
                             Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString() });
@@ -155,8 +154,8 @@ namespace Clawsemble
                            Tokens[Pointer].Type == TokenType.String) {
                     valstack.Push(new Constant(Tokens[Pointer]));
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
-                    if (Constants.ContainsKey(Tokens[Pointer].Content.Trim())) {
-                        Constant cvar = Constants[Tokens[Pointer].Content.Trim()];
+                    if (Defines.ContainsKey(Tokens[Pointer].Content.Trim())) {
+                        Constant cvar = Defines[Tokens[Pointer].Content.Trim()];
                         if (cvar.Type != ConstantType.Empty)
                             valstack.Push(cvar);
                         else
@@ -174,15 +173,21 @@ namespace Clawsemble
                             ExecOp(opstack.Pop(), valstack);
                     }
                 } else if (IsOp(Tokens[Pointer])) {
-                    int stackop = OpPrecedence(opstack.Peek()), currop = OpPrecedence(Tokens[Pointer]);
+                    Token stackop, currop = Tokens[Pointer];
 
-                    if (stackop > currop) {
+                    while (opstack.Count > 0) {
+                        stackop = opstack.Pop();
 
-                    } else if (stackop < currop) {
-
-                    } else { // both are equal
-
+                        if (OpAssociativity(currop) == Associativity.LeftToRight && OpPrecedence(currop) <= OpPrecedence(stackop) ||
+                            OpAssociativity(currop) == Associativity.RightToLeft && OpPrecedence(currop) < OpPrecedence(stackop)) {
+                            ExecOp(stackop, valstack);
+                        } else {
+                            opstack.Push(stackop);
+                            break;
+                        }
                     }
+
+                    opstack.Push(currop);
                 } else
                     throw new CodeError(CodeErrorType.UnexpectedToken, Tokens[Pointer].Type, Tokens[Pointer].Line, Filename);
             }
@@ -341,6 +346,32 @@ namespace Clawsemble
             return 0;
         }
 
+        private enum Associativity
+        {
+            None,
+            LeftToRight,
+            RightToLeft
+        }
+
+        private Associativity OpAssociativity(Token Token)
+        {
+            if (Token.Type == TokenType.Plus || Token.Type == TokenType.Minus ||
+                Token.Type == TokenType.Not || Token.Type == TokenType.BitwiseNot) {
+                return Associativity.RightToLeft;
+            } else if (Token.Type == TokenType.Multiply || Token.Type == TokenType.Divide ||
+                       Token.Type == TokenType.Modulo ||
+                       Token.Type == TokenType.Plus || Token.Type == TokenType.Minus ||
+                       Token.Type == TokenType.BitshiftLeft || Token.Type == TokenType.BitshiftRight ||
+                       Token.Type == TokenType.GreaterThan || Token.Type == TokenType.LessThan ||
+                       Token.Type == TokenType.GreaterEqual || Token.Type == TokenType.LessEqual ||
+                       Token.Type == TokenType.Equal || Token.Type == TokenType.NotEqual ||
+                       Token.Type == TokenType.BitwiseAnd || Token.Type == TokenType.BitwiseXOr ||
+                       Token.Type == TokenType.BitwiseOr || Token.Type == TokenType.LogicalAnd ||
+                       Token.Type == TokenType.LogicalOr) {
+                return Associativity.LeftToRight;
+            } else
+                return Associativity.None;
+        }
     }
 }
 

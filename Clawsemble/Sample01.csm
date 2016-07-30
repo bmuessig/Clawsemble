@@ -10,6 +10,7 @@
 #define test_1      $ffd00
 #define test___2    %f
 
+#define ultimatetest  (test + 2 * 256)
 
 #undefine test___2
 
