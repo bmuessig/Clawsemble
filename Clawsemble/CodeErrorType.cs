@@ -10,13 +10,20 @@ namespace Clawsemble
         ExpectedWord,
         ExpectedNumber,
         ExpectedString,
+        ExpectedOperator,
         UnexpectedEOF,
         UnexpectedToken,
         ExpressionEmpty,
         ExpressionInvalid,
+        ExpressionUncontained,
         ConstantInvalid,
         ConstantEmpty,
-        ConstantNotFound
+        ConstantNotFound,
+        MissmatchedParantheses,
+        StackUnderflow,
+        StackOverflow,
+        TypeMissmatch,
+        OperationInvalid
     }
 }
 

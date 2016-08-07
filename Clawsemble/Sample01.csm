@@ -1,12 +1,4 @@
-﻿#def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)//5*37)
-
-(-25 + 26)
-
-
-#err "Sample error"
-
-
-.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
+﻿.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
 
 				; this metadata is optional and will be imported into the executable
@@ -17,10 +9,11 @@
 #define test        124
 #define test_1      $ffd00
 #define test___2    %f
-
-#define ultimatetest  (test + 2 * 256)
+#def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)//5*37)
 
 #undefine test___2
+
+; #err "Sample error" ; activate to trigger a intentional preprocessor error
 
 				; this metadata is required and has to be present
 .VERSION		0,2		; version expects an array of major and minor version

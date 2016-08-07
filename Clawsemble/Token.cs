@@ -8,6 +8,7 @@ namespace Clawsemble
         public string Content;
         public uint File;
         public uint Line;
+        public uint Position;
     }
 }
 

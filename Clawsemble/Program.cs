@@ -13,7 +13,9 @@ namespace Clawsemble
                 preproc.DoFile(args[0]);
             } catch (CodeError error) {
                 Console.WriteLine(error.Message);
+                return;
             }
+            Console.WriteLine("Tokenizing and preprocessing successful!");
         }
     }
 }

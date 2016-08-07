@@ -1,99 +1,170 @@
 ﻿using System;
+using System.Text;
 
 namespace Clawsemble
 {
     public class CodeError : Exception
     {
-        public string Error { get; private set; }
-
-        public string Details { get; private set; }
-
         public CodeErrorType ErrorType { get; private set; }
 
-        public TokenType TokenType { get; private set; }
+        public string Details { get; set; }
 
-        public uint Line { get; private set; }
+        public Token Token { get; set; }
 
-        public string File { get; private set; }
+        public uint Line { get; set; }
 
-        public new string Message { get; private set; }
+        public uint Position { get; set; }
+
+        public string Filename { get; set; }
+
+        public new string Message {
+            get {
+                var message = new StringBuilder();
+               
+                message.Append(ErrorType.ToString());
+                if (!string.IsNullOrEmpty(Details))
+                    message.AppendFormat(": {0}", Details);
+                message.AppendLine();
+                if (Token.Type != TokenType.Empty) {
+                    message.Append(" near Token (");
+                    message.AppendFormat("Type: {0}", Token.Type.ToString());
+                    if (!string.IsNullOrEmpty(Token.Content))
+                        message.AppendFormat(", Content: \"{0}\"");
+
+                    message.AppendLine(")");
+
+                    if (Token.Line > 0 || Line > 0) {
+                        if (Line > 0)
+                            message.AppendFormat(" on Line {0}", Line);
+                        else
+                            message.AppendFormat(" on Line {0}", Token.Line);
+                        
+                        if (Position > 0)
+                            message.AppendFormat(", Symbol {0}", Position);
+                        else if (Token.Position > 0)
+                            message.AppendFormat(", Symbol {0}", Token.Position);
+                    }
+                } else if (Line > 0) {
+                    message.AppendFormat(" on Line {0}", Line);
+
+                    if (Position > 0)
+                        message.AppendFormat(", Symbol {0}", Position);
+                }
+
+                if (!string.IsNullOrEmpty(Filename))
+                    message.AppendFormat(", in File \"{0}\"", Filename);
+
+                return message.ToString();
+            }
+        }
 
         public CodeError()
         {
-            this.Message = "An unknown error occurred!";
+            this.ErrorType = CodeErrorType.UnknownError;
         }
 
-        public CodeError(String Message)
+        public CodeError(CodeErrorType ErrorType)
         {
-            this.Message = Message;
+            this.ErrorType = ErrorType;
         }
 
-        public CodeError(string Error, uint Line, string File)
+        public CodeError(CodeErrorType ErrorType, string Details)
         {
-            Message = string.Format("\"{0}\" at Line {1} in File \"{2}\"", Error, Line, File);
-            this.Error = Error;
+            this.ErrorType = ErrorType;
+            this.Details = Details;
+        }
+
+        public CodeError(CodeErrorType ErrorType, uint Line)
+        {
+            this.ErrorType = ErrorType;
             this.Line = Line;
-            this.File = File;
         }
 
-        public CodeError(string Error, TokenType TokenType, uint Line, string File)
+        public CodeError(CodeErrorType ErrorType, string Details, uint Line)
         {
-            Message = string.Format("\"{0}\" near Token of type \"{1}\" on Line {2} in File \"{3}\"", Error, TokenType.ToString(), Line, File);
-            this.Error = Error;
-            this.TokenType = TokenType;
+            this.ErrorType = ErrorType;
+            this.Details = Details;
             this.Line = Line;
-            this.File = File;
         }
 
         public CodeError(CodeErrorType ErrorType, uint Line, string File)
         {
-            Message = string.Format("{0} on Line {1} in File \"{2}\"", ErrorType.ToString(), Line, File);
             this.ErrorType = ErrorType;
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
         }
 
         public CodeError(CodeErrorType ErrorType, string Details, uint Line, string File)
         {
-            Message = string.Format("{0} [{1}] on Line {2} in File \"{3}\"", ErrorType.ToString(), Details, Line, File);
             this.ErrorType = ErrorType;
             this.Details = Details;
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
         }
 
-        public CodeError(CodeErrorType ErrorType, TokenType TokenType, uint Line, string File)
+        public CodeError(CodeErrorType ErrorType, uint Position, uint Line, string File)
         {
-            Message = string.Format("{0} near Token of type \"{1}\" on Line {2} in File \"{3}\"", ErrorType.ToString(), TokenType.ToString(), Line, File);
             this.ErrorType = ErrorType;
-            this.TokenType = TokenType;
+            this.Position = Position;
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
         }
 
-        public CodeError(CodeErrorType ErrorType, string Details, TokenType TokenType, uint Line, string File)
+        public CodeError(CodeErrorType ErrorType, uint Position, string Details, uint Line, string File)
         {
-            Message = string.Format("{0} [{1}] near Token of type \"{2}\" on Line {3} in File \"{4}\"", ErrorType.ToString(), Details, TokenType.ToString(), Line, File);
             this.ErrorType = ErrorType;
-            this.TokenType = TokenType;
             this.Details = Details;
+            this.Position = Position;
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
+        }
+
+        public CodeError(CodeErrorType ErrorType, Token Token)
+        {
+            this.ErrorType = ErrorType;
+            this.Token = Token;
+            this.Position = Token.Position;
+            this.Line = Token.Line;
+        }
+
+        public CodeError(CodeErrorType ErrorType, Token Token, string File)
+        {
+            this.ErrorType = ErrorType;
+            this.Token = Token;
+            this.Position = Token.Position;
+            this.Line = Token.Line;
+            this.Filename = File;
+        }
+
+        public CodeError(CodeErrorType ErrorType, string Details, Token Token, string File)
+        {
+            this.ErrorType = ErrorType;
+            this.Token = Token;
+            this.Details = Details;
+            this.Position = Token.Position;
+            this.Line = Token.Line;
+            this.Filename = File;
         }
 
         public CodeError(uint Line, string File)
         {
-            Message = string.Format("Unknown Error on Line {0} in File \"{1}\"", Line, File);
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
         }
 
-        public CodeError(uint Line, string File, TokenType TokenType)
+        public CodeError(uint Position, uint Line, string File)
         {
-            Message = string.Format("Unknown Error near Token of type \"{0}\" on Line {1} in File \"{2}\"", TokenType.ToString(), File, Line);
-            this.TokenType = TokenType;
+            this.Position = Position;
             this.Line = Line;
-            this.File = File;
+            this.Filename = File;
+        }
+
+        public CodeError(Token Token, string File)
+        {
+            this.Token = Token;
+            this.Position = Token.Position;
+            this.Line = Token.Line;
+            this.Filename = File;
         }
     }
 }
