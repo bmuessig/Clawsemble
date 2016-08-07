@@ -8,6 +8,8 @@
 
 ; #err (-10 -10 - -5)
 
+; (0/0)
+
 #define test        124
 #define test_1      $ffd00
 #define test___2    %f
@@ -20,7 +22,7 @@
 #def sign_sol (-10 + 23 - 19 - 15 + 25 - 23 + 15)
 
 ; #err "Sample error" ; activate to trigger a intentional preprocessor error
-; #err ("Unsolved: " + sign + ", Parantheses: " + sign_par + ", Solved: " + sign_sol) ; activate to trigger another preproc error
+#err ("Unsolved: " + sign + ", Parantheses: " + sign_par + ", Solved: " + sign_sol) ; activate to trigger another preproc error
 ; yes, preprocessor allows adding strings together :)
 
 				; this metadata is required and has to be present

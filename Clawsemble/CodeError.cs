@@ -43,16 +43,25 @@ namespace Clawsemble
                             message.AppendFormat(", Symbol {0}", Position);
                         else if (Token.Position > 0)
                             message.AppendFormat(", Symbol {0}", Token.Position);
+
+                        if (!string.IsNullOrEmpty(Filename))
+                            message.AppendFormat(", in File \"{0}\"", Filename);
+                    } else {
+                        if (!string.IsNullOrEmpty(Filename))
+                            message.AppendFormat(" in File \"{0}\"", Filename);
                     }
                 } else if (Line > 0) {
                     message.AppendFormat(" on Line {0}", Line);
 
                     if (Position > 0)
                         message.AppendFormat(", Symbol {0}", Position);
-                }
 
-                if (!string.IsNullOrEmpty(Filename))
-                    message.AppendFormat(", in File \"{0}\"", Filename);
+                    if (!string.IsNullOrEmpty(Filename))
+                        message.AppendFormat(", in File \"{0}\"", Filename);
+                } else {
+                    if (!string.IsNullOrEmpty(Filename))
+                        message.AppendFormat(" in File \"{0}\"", Filename);
+                }
 
                 return message.ToString();
             }

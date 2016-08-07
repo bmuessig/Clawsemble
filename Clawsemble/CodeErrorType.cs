@@ -7,6 +7,7 @@ namespace Clawsemble
         UnknownError,
         UnknownPreprocDir,
         IntentionalError,
+        DivisionByZero,
         ExpectedWord,
         ExpectedNumber,
         ExpectedString,

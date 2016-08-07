@@ -56,6 +56,8 @@ namespace Clawsemble
                     } else if (directive == "if") {
                         ifdepth++;
                         // TODO
+                    } else if (directive == "else") {
+                        // TODO
                     } else if (directive == "elif" || directive == "elseif") {
                         // TODO
                     } else if (directive == "endif") {
@@ -210,7 +212,8 @@ namespace Clawsemble
             var opstack = new Stack<Token>();
 
             for (;; Pointer++) {
-                if (Tokens[Pointer].Type == TokenType.Break || Tokens[Pointer].Type == TokenType.Seperator) {
+                if (Tokens[Pointer].Type == TokenType.Break || Tokens[Pointer].Type == TokenType.Seperator ||
+                    Tokens[Pointer].Type == TokenType.Comment) {
                     break;
                 } else if (Tokens[Pointer].Type == TokenType.Number ||
                            Tokens[Pointer].Type == TokenType.Character ||
@@ -233,8 +236,15 @@ namespace Clawsemble
                         if (opstack.Peek().Type == TokenType.ParanthesisOpen) {
                             opstack.Pop();
                             break;
-                        } else
-                            ExecOp(opstack.Pop(), valstack);
+                        } else {
+                            Token optok = opstack.Pop();
+                            try {
+                                ExecOp(optok, valstack);
+                            } catch (CodeError error) {
+                                error.Token = optok;
+                                throw error;
+                            }
+                        }
                     }
                 } else if (IsOp(Tokens[Pointer])) {
                     Token stackop, currop = Tokens[Pointer];
@@ -244,7 +254,12 @@ namespace Clawsemble
 
                         if (OpAssociativity(currop) == Associativity.LeftToRight && OpPrecedence(currop) <= OpPrecedence(stackop) ||
                             OpAssociativity(currop) == Associativity.RightToLeft && OpPrecedence(currop) < OpPrecedence(stackop)) {
-                            ExecOp(stackop, valstack);
+                            try {
+                                ExecOp(stackop, valstack);
+                            } catch (CodeError error) {
+                                error.Token = stackop;
+                                throw error;
+                            }
                         } else {
                             opstack.Push(stackop);
                             break;
@@ -267,7 +282,8 @@ namespace Clawsemble
                         try {
                             ExecOp(optok, valstack);
                         } catch (CodeError error) {
-                            throw new CodeError(error.ErrorType);
+                            error.Token = optok;
+                            throw error;
                         }
                     }
                 }
@@ -337,6 +353,8 @@ namespace Clawsemble
                         Stack.Push(new Constant(ct1.Number ^ ct0.Number));
                         return;
                     case TokenType.Divide:
+                        if (ct0.Number == 0)
+                            throw new CodeError(CodeErrorType.DivisionByZero);
                         Stack.Push(new Constant(ct1.Number / ct0.Number));
                         return;
                     case TokenType.GreaterEqual:
@@ -361,6 +379,8 @@ namespace Clawsemble
                         Stack.Push(new Constant(ct1.Number - ct0.Number));
                         return;
                     case TokenType.Modulo:
+                        if (ct0.Number == 0)
+                            throw new CodeError(CodeErrorType.DivisionByZero);
                         Stack.Push(new Constant(ct1.Number % ct0.Number));
                         return;
                     case TokenType.Multiply:
