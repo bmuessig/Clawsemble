@@ -437,8 +437,6 @@ namespace Clawsemble
                        Token.Type == TokenType.BitwiseOr || Token.Type == TokenType.LogicalAnd ||
                        Token.Type == TokenType.LogicalOr ||
                        Token.Type == TokenType.Plus || Token.Type == TokenType.Minus) {
-                // according to c++ doc, plus and minus are rtl associative,
-                // but mathematically this doesn't work so I put them here
                 return Associativity.LeftToRight;
             } else
                 return Associativity.None;
