@@ -6,12 +6,14 @@ namespace Clawsemble
     {
         UnknownError,
         UnknownPreprocDir,
+        IntentionalError,
         ExpectedWord,
         ExpectedNumber,
         ExpectedString,
         UnexpectedEOF,
         UnexpectedToken,
-        EmptyExpression,
+        ExpressionEmpty,
+        ExpressionInvalid,
         ConstantInvalid,
         ConstantEmpty,
         ConstantNotFound

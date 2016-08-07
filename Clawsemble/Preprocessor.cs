@@ -58,6 +58,12 @@ namespace Clawsemble
                     } else if (directive == "endif") {
                         ifdepth--;
                         // TODO
+                    } else if (directive == "err" || directive == "error") {
+                        if (i + 1 < ftokens.Count) {
+                            if (ftokens[++i].Type == TokenType.String)
+                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Content, ftokens[i].Line, Filename);
+                        }
+                        throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
                     } else if (directive == "def" || directive == "define") {
                         string key = "";
                         Constant value = new Constant();
@@ -107,7 +113,7 @@ namespace Clawsemble
                             Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else
-                        throw new CodeError(CodeErrorType.EmptyExpression, ftokens[i].Line, Filename);
+                        throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
                 } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
                            ftokens[i].Type == TokenType.HexadecimalEscape) {
                     Constant eval;
@@ -140,6 +146,8 @@ namespace Clawsemble
                             Line = ftokens[i].Line, File = (uint)Files.Count
                         });
                     } // else drop it as we don't want newlines following each other
+                } else if (IsOp(ftokens[i])) {
+                    throw new CodeError("Expressions outside of parantheses are not supported!");
                 } else if (ftokens[i].Type != TokenType.Comment && ftokens[i].Type != TokenType.CharacterEscape) {
                     // we cannot deal with the token just yet
                     Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
@@ -213,7 +221,7 @@ namespace Clawsemble
                 }
             }
             if (valstack.Count > 1)
-                throw new Exception("Invalid expression!");
+                throw new CodeError(CodeErrorType.ExpressionInvalid, Tokens[Pointer - 1].Line, Filename);
             else if (valstack.Count == 0)
                 valstack.Push(new Constant(0));
             if (valstack.Peek().Type == ConstantType.Empty)

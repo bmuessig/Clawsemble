@@ -155,9 +155,17 @@ namespace Clawsemble
                 } else if (chr == '+') {
                     FinishToken(tokens, ref type, ref line, sb);
                     type = TokenType.Plus;
+                    if (tokens.Count > 0) {
+                        if (tokens[tokens.Count - 1].Type == TokenType.Number)
+                            FinishToken(tokens, ref type, ref line, sb);
+                    }
                 } else if (chr == '-') {
                     FinishToken(tokens, ref type, ref line, sb);
                     type = TokenType.Minus;
+                    if (tokens.Count > 0) {
+                        if (tokens[tokens.Count - 1].Type == TokenType.Number)
+                            FinishToken(tokens, ref type, ref line, sb);
+                    }
                 } else if (chr == '*') {
                     FinishToken(tokens, ref type, ref line, sb);
                     type = TokenType.Multiply;
@@ -180,8 +188,11 @@ namespace Clawsemble
                     FinishToken(tokens, ref type, ref line, sb);
                 } else if (chr >= '0' && chr <= '9') {
                     if (type == TokenType.Empty || type == TokenType.Minus || type == TokenType.Plus) {
-                        if (type == TokenType.Plus)
+                        if (type == TokenType.Minus)
                             sb.Append('-');
+                        type = TokenType.Number;
+                    } else if (type != TokenType.Number && type != TokenType.Word && type != TokenType.HexadecimalEscape) {
+                        FinishToken(tokens, ref type, ref line, sb);
                         type = TokenType.Number;
                     }
                     sb.Append(chr);
@@ -191,7 +202,7 @@ namespace Clawsemble
                         type = TokenType.Word;
                     sb.Append(chr);
                 } else if (((chr >= 'A' && chr <= 'F') || (chr >= 'a' && chr <= 'f'))
-                           && type == TokenType.HexadecimalEscape && type != TokenType.Number) {
+                           && type == TokenType.HexadecimalEscape) {
                     sb.Append(chr);
                 } else {
                     type = TokenType.Error;
@@ -199,9 +210,9 @@ namespace Clawsemble
                 }
             }
 				
-            // reader.Dispose();
-            Stream.Dispose();
+            reader.Dispose();
 
+            FinishToken(tokens, ref type, ref line, sb);
             tokens.Add(new Token() { Type = TokenType.Break, Line = line, File = 0 });
             return tokens;
         }

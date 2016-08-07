@@ -1,5 +1,9 @@
-﻿-25 + 26
+﻿#def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)//5*37)
 
+(-25 + 26)
+
+
+#err "Sample error"
 
 
 .CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
@@ -34,6 +38,6 @@
 	mul					; multiplies the sum from earlier with 42
 	ret					; ret at the end of symbols is totally optional
 
-.sym expr_test:23+5
-	ld		233345 & (1 << 4)
-	mulc		-25 + 26
+.sym expr_test:(23+5)
+	ld		(233345 & (1 << 4))
+	mulc		(-25 + 26 + (-25))

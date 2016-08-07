@@ -9,8 +9,11 @@ namespace Clawsemble
         public static void Main(string[] args)
         {
             var preproc = new Preprocessor();
-            preproc.DoFile("Sample01.csm");
-            Console.Write(preproc.Tokens.Count.ToString());
+            try {
+                preproc.DoFile(args[0]);
+            } catch (CodeError error) {
+                Console.WriteLine(error.Message);
+            }
         }
     }
 }
