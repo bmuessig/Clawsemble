@@ -29,7 +29,7 @@ namespace Clawsemble
                     message.Append(" near Token (");
                     message.AppendFormat("Type: {0}", Token.Type.ToString());
                     if (!string.IsNullOrEmpty(Token.Content))
-                        message.AppendFormat(", Content: \"{0}\"");
+                        message.AppendFormat(", Content: \"{0}\"", Token.Content);
 
                     message.AppendLine(")");
 

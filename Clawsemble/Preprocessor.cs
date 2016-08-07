@@ -63,10 +63,40 @@ namespace Clawsemble
                         // TODO
                     } else if (directive == "err" || directive == "error") {
                         if (i + 1 < ftokens.Count) {
-                            if (ftokens[++i].Type == TokenType.String)
+                            if (ftokens[i + 1].Type == TokenType.String) {
+                                i++;
                                 throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Content, ftokens[i].Line, Filename);
-                        }
-                        throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
+                            } else if (ftokens[i + 1].Type == TokenType.Word) {
+                                if (string.IsNullOrEmpty(ftokens[++i].Content))
+                                    throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i], Filename);
+                                if (!Defines.ContainsKey(ftokens[i].Content.Trim()))
+                                    throw new CodeError(CodeErrorType.ConstantNotFound, ftokens[i], Filename);
+                                Constant eval = Defines[ftokens[i].Content.Trim()];
+
+                                if (eval.Type == ConstantType.Numeric)
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[i].Line, Filename);
+                                else if (eval.Type == ConstantType.String)
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
+                                else
+                                    throw new CodeError(CodeErrorType.ConstantEmpty, ftokens[i].Line, Filename);
+                            } else if (ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
+                                Constant eval;
+                                i++;
+                                try {
+                                    eval = EvaluateExpression(ref i, ftokens);
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
+                                if (eval.Type == ConstantType.Numeric)
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[i].Line, Filename);
+                                else if (eval.Type == ConstantType.String)
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
+                                else
+                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
+                            }
+                        } else
+                            throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
                     } else if (directive == "def" || directive == "define") {
                         string key = "";
                         Constant value = new Constant();
@@ -101,6 +131,8 @@ namespace Clawsemble
                     } else if (directive == "undef" || directive == "undefine") {
                         if (i + 1 < ftokens.Count) {
                             if (ftokens[++i].Type == TokenType.Word) {
+                                if (string.IsNullOrEmpty(ftokens[i].Content))
+                                    throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i], Filename);
                                 if (Defines.ContainsKey(ftokens[i].Content.Trim()))
                                     Defines.Remove(ftokens[i].Content.Trim());
                             } else
@@ -286,7 +318,7 @@ namespace Clawsemble
                     } else if (Token.Type == TokenType.Divide)
                         Stack.Push(new Constant(ct1.String.Replace(ct0.String, "")));
                     else
-                        throw new CodeError(CodeErrorType.OperationInvalid, "Can't apply operation to type of string!");
+                        throw new CodeError(CodeErrorType.OperationInvalid, "Can't apply arithmetic operation to type of string!");
                 } else if (ct0.Type == ConstantType.Numeric && ct1.Type == ConstantType.Numeric) {
                     switch (Token.Type) {
                     case TokenType.BitshiftLeft:
@@ -392,8 +424,7 @@ namespace Clawsemble
 
         private Associativity OpAssociativity(Token Token)
         {
-            if (Token.Type == TokenType.Plus || Token.Type == TokenType.Minus ||
-                Token.Type == TokenType.Not || Token.Type == TokenType.BitwiseNot) {
+            if (Token.Type == TokenType.Not || Token.Type == TokenType.BitwiseNot) {
                 return Associativity.RightToLeft;
             } else if (Token.Type == TokenType.Multiply || Token.Type == TokenType.Divide ||
                        Token.Type == TokenType.Modulo ||
@@ -404,11 +435,13 @@ namespace Clawsemble
                        Token.Type == TokenType.Equal || Token.Type == TokenType.NotEqual ||
                        Token.Type == TokenType.BitwiseAnd || Token.Type == TokenType.BitwiseXOr ||
                        Token.Type == TokenType.BitwiseOr || Token.Type == TokenType.LogicalAnd ||
-                       Token.Type == TokenType.LogicalOr) {
+                       Token.Type == TokenType.LogicalOr ||
+                       Token.Type == TokenType.Plus || Token.Type == TokenType.Minus) {
+                // according to c++ doc, plus and minus are rtl associative,
+                // but mathematically this doesn't work so I put them here
                 return Associativity.LeftToRight;
             } else
                 return Associativity.None;
         }
     }
 }
-

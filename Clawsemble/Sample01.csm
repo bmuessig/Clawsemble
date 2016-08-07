@@ -6,12 +6,19 @@
 .AUTHOR			"muessigb"
 .COPYRIGHT		"(c) 2016 muessigb"
 
+; #err (-10 -10 - -5)
+
 #define test        124
 #define test_1      $ffd00
 #define test___2    %f
 #def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)//5*37)
 
 #undefine test___2
+
+#def sign (-10 + 23 + -19 - 15 + +25 - 23 - -15)
+#def sign_par (-10 + 23 + (-19) - 15 + (+25) - 23 - (-15))
+#def sign_sol (-10 + 23 - 19 - 15 + 25 - 23 + 15)
+#err ("Unsolved: " + sign + ", Parantheses: " + sign_par + ", Solved: " + sign_sol)
 
 ; #err "Sample error" ; activate to trigger a intentional preprocessor error
 
