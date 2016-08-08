@@ -5,13 +5,14 @@ namespace Clawsemble
     public enum CodeErrorType
     {
         UnknownError,
-        UnknownPreprocDir,
+        UnknownDirective,
         IntentionalError,
         DivisionByZero,
         ExpectedWord,
         ExpectedNumber,
         ExpectedString,
         ExpectedOperator,
+        ExpectedExpression,
         UnexpectedEOF,
         UnexpectedToken,
         ExpressionEmpty,
@@ -24,7 +25,8 @@ namespace Clawsemble
         StackUnderflow,
         StackOverflow,
         TypeMissmatch,
-        OperationInvalid
+        OperationInvalid,
+        IfMissmatched
     }
 }
 

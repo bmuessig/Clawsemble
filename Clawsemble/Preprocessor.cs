@@ -16,6 +16,7 @@ namespace Clawsemble
             Tokens = new List<Token>();
             Files = new List<string>();
             Defines = new Dictionary<string, Constant>();
+            Defines.Add("NULL", new Constant(0));
         }
 
         public void Clear()
@@ -23,6 +24,7 @@ namespace Clawsemble
             Tokens.Clear();
             Files.Clear();
             Defines.Clear();
+            Defines.Add("NULL", new Constant(0));
         }
 
         public void DoFile(string Filename)
@@ -30,39 +32,167 @@ namespace Clawsemble
             if (!File.Exists(Filename))
                 throw new FileNotFoundException("Included file not found!", Filename);
             List<Token> ftokens = Tokenizer.Tokenize(File.OpenRead(Filename));
-            string directive = "";
-            int ifdepth = 0;
-
+            
+            string directive;
+            var ifStack = new ArbitraryStack<bool>();
+           
             Files.Add(Filename);
 
             for (int i = 0; i < ftokens.Count; i++) {
                 if (ftokens[i].Type == TokenType.PreprocessorDirective) {
                     if (string.IsNullOrEmpty(ftokens[i].Content))
-                        throw new CodeError(CodeErrorType.UnknownPreprocDir, "Empty preprocessor directive!", ftokens[i], Filename);
+                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", ftokens[i], Filename);
 
                     directive = ftokens[i].Content.Trim().ToLower();
-                    if (directive == "inc" || directive == "include") {
-                        if (i + 1 < ftokens.Count) {
+                    if (directive == "if" || directive == "elif" || directive == "elseif") {
+                        if (directive == "elif" || directive == "elseif") {
+                            if (ifStack.Count == 0)
+                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                            if (ifStack.Peek()) {
+                                try {
+                                    SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
+                                continue;
+                            }
+                        }
+
+                        if (!IsBeforeEOF(i, ftokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i - 1].Line, Filename);
+                        
+                        if (ftokens[++i].Type == TokenType.ParanthesisOpen) {
+                            Constant eval;
+                            bool result;
+                            try {
+                                eval = EvaluateExpression(ref i, ftokens);
+                            } catch (CodeError error) {
+                                error.Filename = Filename;
+                                throw error;
+                            }
+
+                            if (eval.Type == ConstantType.Numeric)
+                                result = (bool)(eval.Number > 0);
+                            else if (eval.Type == ConstantType.String)
+                                result = (bool)(!string.IsNullOrEmpty(eval.String));
+                            else
+                                result = false;
+
+                            if (result) {
+                                if (directive == "if") {
+                                    ifStack.Push(true); // success, handle what follows
+                                } else if (directive == "elif" || directive == "elseif") {
+                                    ifStack.Change(true);
+                                }
+                            } else {
+                                if (directive == "if") {
+                                    ifStack.Push(false); // no success, keep searching
+                                } else if (directive == "elif" || directive == "elseif") {
+                                    ifStack.Change(false); // no success, keep searching
+                                }
+
+                                try {
+                                    SkipAhead(ref i, ftokens, ifStack, false); // skip to the next block
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
+                            }
+                        } else
+                            throw new CodeError(CodeErrorType.ExpectedExpression, ftokens[i], Filename);
+                    } else if (directive == "ifdef" || directive == "ifndef" ||
+                               directive == "elifdef" || directive == "elseifdef" || directive == "elifndef" || directive == "elseifndef") {
+                        if (directive == "elifdef" || directive == "elseifdef" || directive == "elifndef" || directive == "elseifndef") {
+                            if (ifStack.Count == 0)
+                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                            if (ifStack.Peek()) {
+                                try {
+                                    SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
+                                continue;
+                            }
+                        }
+                        
+                        if (ftokens[++i].Type == TokenType.Word) {
+                            if (!string.IsNullOrEmpty(ftokens[i].Content)) {
+                                if (Defines.ContainsKey(ftokens[i].Content.Trim())) { // the key exists
+                                    if (directive == "ifdef") { // key exists AND we have an ifdef = success
+                                        ifStack.Push(true); // add that if is solved
+                                    } else if (directive == "ifndef") { // key exists AND we have an ifndef = no success
+                                        ifStack.Push(false); // add that if is not solved and start search for an else
+                                        try {
+                                            SkipAhead(ref i, ftokens, ifStack, false); // and let's skip to the next interesting block
+                                        } catch (CodeError error) {
+                                            error.Filename = Filename;
+                                            throw error;
+                                        }
+                                    } else if (directive == "elifdef" || directive == "elseifdef") { // we have a key and ELSEifdef
+                                        ifStack.Change(true); // change if to solved
+                                    } else if (directive == "elifndef" || directive == "elseifndef") {
+                                        ifStack.Change(false); // no success; lets search for an else
+                                        try {
+                                            SkipAhead(ref i, ftokens, ifStack, false); // skip to the next interesting block
+                                        } catch (CodeError error) {
+                                            error.Filename = Filename;
+                                            throw error;
+                                        }
+                                    }
+                                } else {
+                                    if (directive == "ifdef") { // key exists AND we have an ifdef = success
+                                        ifStack.Push(false); // add that if is not solved and start search for an else
+                                        try {
+                                            SkipAhead(ref i, ftokens, ifStack, false); // and let's skip to the next interesting block
+                                        } catch (CodeError error) {
+                                            error.Filename = Filename;
+                                            throw error;
+                                        }
+                                    } else if (directive == "ifndef") { // key exists AND we have an ifndef = no success
+                                        ifStack.Push(true); // add it, as the if is solved
+                                    } else if (directive == "elifdef" || directive == "elseifdef") { // we have a key and ELSEifdef
+                                        ifStack.Change(false); // no success; lets search for an else
+                                        try {
+                                            SkipAhead(ref i, ftokens, ifStack, false); // skip to the next interesting block
+                                        } catch (CodeError error) {
+                                            error.Filename = Filename;
+                                            throw error;
+                                        }
+                                    } else if (directive == "elifndef" || directive == "elseifndef") {
+                                        ifStack.Change(true); // change if to solved
+                                    }
+                                }
+                            } else
+                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i]);
+                        } else
+                            throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i]);
+                    } else if (directive == "else") {
+                        if (ifStack.Count == 0)
+                            throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                        if (ifStack.Peek()) {
+                            try {
+                                SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                            } catch (CodeError error) {
+                                error.Filename = Filename;
+                                throw error;
+                            }
+                            continue;
+                        }
+                        ifStack.Change(true); // we assume nothing comes after the true block so we just jump into it
+                    } else if (directive == "endif") {
+                        if (ifStack.Count == 0)
+                            throw new CodeError(CodeErrorType.IfMissmatched, "Too many closing if's!", ftokens[i], Filename);
+                        ifStack.Pop(); // remove one if from the stack
+                    } else if (directive == "inc" || directive == "include") {
+                        if (IsBeforeEOF(i, ftokens.Count)) {
                             if (ftokens[i + 1].Type == TokenType.String) {
                                 DoFile(ftokens[++i].Content);
                             } else
                                 throw new CodeError(CodeErrorType.ExpectedString, ftokens[i], Filename);
                         } else
                             throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
-                    } else if (directive == "ifdef" || directive == "ifdefined") {
-                        // TODO
-                    } else if (directive == "ifndef" || directive == "ifnotdefined") {
-                        // TODO
-                    } else if (directive == "if") {
-                        ifdepth++;
-                        // TODO
-                    } else if (directive == "else") {
-                        // TODO
-                    } else if (directive == "elif" || directive == "elseif") {
-                        // TODO
-                    } else if (directive == "endif") {
-                        ifdepth--;
-                        // TODO
                     } else if (directive == "err" || directive == "error") {
                         if (i + 1 < ftokens.Count) {
                             if (ftokens[i + 1].Type == TokenType.String) {
@@ -96,7 +226,8 @@ namespace Clawsemble
                                     throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
                                 else
                                     throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
-                            }
+                            } else
+                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
                         } else
                             throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
                     } else if (directive == "def" || directive == "define") {
@@ -121,7 +252,7 @@ namespace Clawsemble
                                     throw error;
                                 }
                             }
-                        } else if (i + 1 < ftokens.Count) {
+                        } else if (IsBeforeEOF(i, ftokens.Count)) {
                             if (ftokens[i + 1].Type == TokenType.Word)
                                 key = ftokens[++i].Content.Trim();
                             else
@@ -131,7 +262,7 @@ namespace Clawsemble
 						
                         Defines.Add(key, value);
                     } else if (directive == "undef" || directive == "undefine") {
-                        if (i + 1 < ftokens.Count) {
+                        if (IsBeforeEOF(i, ftokens.Count)) {
                             if (ftokens[++i].Type == TokenType.Word) {
                                 if (string.IsNullOrEmpty(ftokens[i].Content))
                                     throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i], Filename);
@@ -142,7 +273,7 @@ namespace Clawsemble
                         } else
                             throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
                     } else
-                        throw new CodeError(CodeErrorType.UnknownPreprocDir, ftokens[i], Filename);
+                        throw new CodeError(CodeErrorType.UnknownDirective, ftokens[i], Filename);
                 } else if (ftokens[i].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
                     int origi = i;
                     Constant eval;
@@ -165,12 +296,15 @@ namespace Clawsemble
                 } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
                            ftokens[i].Type == TokenType.HexadecimalEscape) {
                     Constant eval;
-                    if (Constant.TryParse(ftokens[i], out eval)) {
-                        Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                            Line = ftokens[i].Line, File = (uint)Files.Count
-                        });
-                    } else
-                        throw new CodeError(CodeErrorType.ConstantInvalid, ftokens[i].Line, Filename);
+                    try {
+                        eval = new Constant(ftokens[i]);
+                    } catch (Exception ex) {
+                        throw new CodeError(CodeErrorType.ConstantInvalid, ex.Message, ftokens[i], 0, ftokens[i].Position, Filename);
+                    }
+
+                    Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
+                        Line = ftokens[i].Line, File = (uint)Files.Count
+                    });
                 } else if (ftokens[i].Type == TokenType.Word) {
                     if (Defines.ContainsKey(ftokens[i].Content)) {
                         Constant eval = Defines[ftokens[i].Content];
@@ -204,6 +338,55 @@ namespace Clawsemble
                     });
                 }
             }
+
+            if (ifStack.Count > 0)
+                throw new CodeError(CodeErrorType.IfMissmatched, "Unterminated if's remaining!", Filename);
+        }
+
+        /* *
+         * I assume this should skip until the next IF control statement of the same hierarchy
+         * e.g.     IF      <= we are here and condition is not met
+         *              IF
+         *              ELIF
+         *              ENDIF
+         *          ELIF    <= we want to go here
+         *          ...
+         * */
+        private void SkipAhead(ref int Pointer, List<Token> Tokens, ArbitraryStack<bool> IfStack, bool SkipToEnd)
+        {
+            int startDepth = IfStack.Count;
+            string directive;
+
+            for (; IsBeforeEOF(Pointer, Tokens.Count); Pointer++) {
+                if (Tokens[Pointer].Type != TokenType.PreprocessorDirective)
+                    continue;
+                if (string.IsNullOrEmpty(Tokens[Pointer].Content))
+                    throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", Tokens[Pointer]);
+                
+                directive = Tokens[Pointer].Content.Trim().ToLower();
+                if (directive == "endif") {
+                    if (IfStack.Count == 0)
+                        throw new CodeError(CodeErrorType.IfMissmatched, "Too many closing if's!", Tokens[Pointer]);
+
+                    IfStack.Pop(); // pop the placeholders again
+                    if (IfStack.Count < startDepth) // as soon as we reach the end of the target level
+                        return; // we hit something interesting
+                } else if (directive == "if" || directive == "ifdef" || directive == "ifndef") {
+                    IfStack.Push(true); // just adding a placeholder onto the if stack; these blocks are not parsed but skipped
+                } else if (IfStack.Count == startDepth && !SkipToEnd &&
+                           (directive == "elif" || directive == "elseif" || directive == "else" ||
+                           directive == "elifdef" || directive == "elseifdef")) {
+                    Pointer--;
+                    return; // we hit something interesting
+                }
+            }
+
+            throw new CodeError(CodeErrorType.UnexpectedEOF, Tokens[Pointer - 1].Line);
+        }
+
+        private bool IsBeforeEOF(int Pointer, int AvlLength, int ReqLength = 1)
+        {
+            return (bool)(Pointer + ReqLength < AvlLength);
         }
 
         private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens)

@@ -1,4 +1,60 @@
-﻿.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
+﻿;#define cond "Madeleine"
+;#define cond2 1
+
+#ifdef cond
+#err "cond"
+#elifdef cond2
+#err "cond2"
+#else
+#define cond "Benedikt"
+#endif
+
+#if (cond == "Felix")
+
+#err "Hi, great to see you again, Felix!"
+
+#elif (cond == "Benedikt")
+
+#err "Hi, Benedikt!"
+
+#else
+
+#err ("You aren't Felix nor Benedikt, still hi, " + cond + "!")
+
+#endif
+
+
+#define test 1
+
+#ifdef test
+
+#ifndef test
+#err "Can't be here!"
+#else
+;#err "If was successfully triggered (defined)!"
+#undef test
+#endif
+
+#else
+
+#err "If was successfully triggered (notdefined)!"
+
+#endif
+
+
+
+
+
+
+
+
+
+
+#ifndef test
+#err "well it seems this works too :)"
+#endif
+
+.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
 
 				; this metadata is optional and will be imported into the executable
@@ -9,6 +65,8 @@
 ; #err (-10 -10 - -5)
 
 ; (0/0)
+
+$12345678
 
 #define test        124
 #define test_1      $ffd00
