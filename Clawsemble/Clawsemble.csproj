@@ -20,7 +20,7 @@
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <Externalconsole>true</Externalconsole>
-    <Commandlineparameters>Sample02.csm</Commandlineparameters>
+    <Commandlineparameters>Sample01.csm</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>full</DebugType>
@@ -50,7 +50,7 @@
     <Compile Include="ArbitraryStack.cs" />
     <Compile Include="InstructionSignature.cs" />
     <Compile Include="InstructionArgumentType.cs" />
-    <Compile Include="Instructions.cs" />
+    <Compile Include="DefaultInstructions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

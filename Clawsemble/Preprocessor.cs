@@ -198,19 +198,23 @@ namespace Clawsemble
                             if (ftokens[i + 1].Type == TokenType.String) {
                                 i++;
                                 throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Content, ftokens[i].Line, Filename);
-                            } else if (ftokens[i + 1].Type == TokenType.Word) {
-                                if (string.IsNullOrEmpty(ftokens[++i].Content))
-                                    throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i], Filename);
-                                if (!Defines.ContainsKey(ftokens[i].Content.Trim()))
-                                    throw new CodeError(CodeErrorType.ConstantNotFound, ftokens[i], Filename);
-                                Constant eval = Defines[ftokens[i].Content.Trim()];
-
+                            } else if (ftokens[i + 1].Type == TokenType.Number || ftokens[i + 1].Type == TokenType.Character ||
+                                       ftokens[i + 1].Type == TokenType.CharacterRemove || ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
+                                       ftokens[i + 1].Type == TokenType.Word) {
+                                Constant eval;
+                                i++;
+                                try {
+                                    eval = EvaluateExpression(ref i, ftokens, 1);
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
                                 if (eval.Type == ConstantType.Numeric)
                                     throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[i].Line, Filename);
                                 else if (eval.Type == ConstantType.String)
                                     throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
                                 else
-                                    throw new CodeError(CodeErrorType.ConstantEmpty, ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
                             } else if (ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
                                 Constant eval;
                                 i++;
@@ -233,7 +237,7 @@ namespace Clawsemble
                     } else if (directive == "def" || directive == "define") {
                         string key = "";
                         Constant value = new Constant();
-                        // TokenType type = TokenType.Empty;
+
                         if (i + 2 < ftokens.Count) {
                             if (ftokens[i + 1].Type == TokenType.Word)
                                 key = ftokens[++i].Content.Trim();
@@ -243,7 +247,15 @@ namespace Clawsemble
                                 ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
                                 ftokens[i + 1].Type == TokenType.Character ||
                                 ftokens[i + 1].Type == TokenType.Number ||
-                                ftokens[i + 1].Type == TokenType.Word || ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
+                                ftokens[i + 1].Type == TokenType.Word) {
+                                i++;
+                                try {
+                                    value = EvaluateExpression(ref i, ftokens, 1);
+                                } catch (CodeError error) {
+                                    error.Filename = Filename;
+                                    throw error;
+                                }
+                            } else if (ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
                                 i++;
                                 try {
                                     value = EvaluateExpression(ref i, ftokens);
@@ -331,7 +343,7 @@ namespace Clawsemble
                 } else if (IsOp(ftokens[i])) {
                     throw new CodeError(CodeErrorType.ExpressionUncontained, "Expressions need to be surrounded by parantheses!",
                         ftokens[i], Filename);
-                } else if (ftokens[i].Type != TokenType.Comment && ftokens[i].Type != TokenType.CharacterEscape) {
+                } else if (ftokens[i].Type != TokenType.Comment && ftokens[i].Type != TokenType.CharacterRemove) {
                     // we cannot deal with the token just yet
                     Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
                         Line = ftokens[i].Line, File = (uint)Files.Count
@@ -389,12 +401,13 @@ namespace Clawsemble
             return (bool)(Pointer + ReqLength < AvlLength);
         }
 
-        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens)
+        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens, int MaxLength = int.MaxValue)
         {
             var valstack = new Stack<Constant>();
             var opstack = new Stack<Token>();
+            int startPtr = Pointer;
 
-            for (;; Pointer++) {
+            for (; Pointer - startPtr < MaxLength; Pointer++) {
                 if (Tokens[Pointer].Type == TokenType.Break || Tokens[Pointer].Type == TokenType.Seperator ||
                     Tokens[Pointer].Type == TokenType.Comment) {
                     break;
@@ -402,7 +415,13 @@ namespace Clawsemble
                            Tokens[Pointer].Type == TokenType.Character ||
                            Tokens[Pointer].Type == TokenType.HexadecimalEscape ||
                            Tokens[Pointer].Type == TokenType.String) {
-                    valstack.Push(new Constant(Tokens[Pointer]));
+                    Constant con;
+                    try {
+                        con = new Constant(Tokens[Pointer]);
+                    } catch (Exception ex) {
+                        throw new CodeError(CodeErrorType.ConstantInvalid, ex.Message, Tokens[Pointer]);
+                    }
+                    valstack.Push(con);
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
                     if (Defines.ContainsKey(Tokens[Pointer].Content.Trim())) {
                         Constant cvar = Defines[Tokens[Pointer].Content.Trim()];

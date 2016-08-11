@@ -1,4 +1,2 @@
-﻿#def test (100 * -200)
-
-
-#err test
+﻿
+#err '\nd'

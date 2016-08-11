@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Clawsemble
 {
@@ -21,13 +22,13 @@ namespace Clawsemble
 
                 if ((type == TokenType.Comment && chr != '\r' && chr != '\n') ||
                     (type == TokenType.String && chr != '"' && chr != '\r' && chr != '\n') ||
-                    (type == TokenType.CharacterEscape && sb.Length < 1) ||
-                    (type == TokenType.Character && sb.Length < 1)) {
+                    (type == TokenType.Character && chr != '\'' && chr != '\r' && chr != '\n' && sb.Length < 3) ||
+                    (type == TokenType.CharacterRemove && sb.Length < 1)) {
                     sb.Append(chr);
-                    if (type == TokenType.CharacterEscape || type == TokenType.Character)
+                    if (type == TokenType.CharacterRemove)
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == '\n' || chr == '\r') {
-                    if (type == TokenType.CharacterEscape || type == TokenType.Character) {
+                    if (type == TokenType.CharacterRemove || type == TokenType.Character) {
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else if (chr == '\r') {
@@ -47,16 +48,20 @@ namespace Clawsemble
                     type = TokenType.Comment;
                 } else if (chr == '\\') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.CharacterEscape;
-                } else if (chr == '%') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.Character;
+                    type = TokenType.CharacterRemove;
                 } else if (chr == '"') {
                     if (type == TokenType.String) {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                         type = TokenType.String;
+                    }
+                } else if (chr == '\'') {
+                    if (type == TokenType.Character) {
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    } else {
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        type = TokenType.Character;
                     }
                 } else if (chr == '.') {
                     if (type == TokenType.Empty)
@@ -85,11 +90,11 @@ namespace Clawsemble
                 } else if (chr == '!') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.Not;
-                } else if (chr == '[') {
+                } else if (chr == '{') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.ArrayOpen;
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
-                } else if (chr == ']') {
+                } else if (chr == '}') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.ArrayClose;
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
@@ -163,6 +168,7 @@ namespace Clawsemble
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.Minus;
                     if (tokens.Count > 0) {
+                        
                         if (tokens[tokens.Count - 1].Type == TokenType.Number)
                             FinishToken(tokens, ref type, ref pos, ref line, sb);
                     }
@@ -171,13 +177,13 @@ namespace Clawsemble
                     type = TokenType.Multiply;
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == '/') {
-                    if (type == TokenType.Divide) {
-                        type = TokenType.Modulo;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
-                        type = TokenType.Divide;
-                    }
+                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    type = TokenType.Divide;
+                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                } else if (chr == '%') {
+                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    type = TokenType.Modulo;
+                    FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == '^') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.BitwiseXOr;
@@ -222,16 +228,24 @@ namespace Clawsemble
             Position++;
 
             if (Builder.Length > 0) {
+                string content;
+
                 if (Type == TokenType.Empty)
                     Type = TokenType.Error;
+
+                content = Builder.ToString();
+                Builder.Clear();
+
+                if (Type == TokenType.String || Type == TokenType.Character)
+                    content = EscapeString(content);
+
                 Tokens.Add(new Token() {
                     Type = Type,
-                    Content = Builder.ToString(),
+                    Content = content,
                     Position = Position,
                     Line = Line,
                     File = 0
                 });
-                Builder.Clear();
             } else if (Type != TokenType.Empty) {
                 Tokens.Add(new Token() { Type = Type, Position = Position, Line = Line, File = 0 });
                 if (Type == TokenType.Break) {
@@ -240,6 +254,38 @@ namespace Clawsemble
                 }
             }
             Type = TokenType.Empty;
+        }
+
+        private static string EscapeString(string Input)
+        {
+            var regex = new Regex(@"\\(?:([tnrb])|(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9]))");
+            return regex.Replace(Input, delegate(Match match) {
+                if (match.Groups.Count == 3) {
+                    string escape;
+
+                    if (match.Groups[1].Length > 0) {
+                        escape = match.Groups[1].Value.ToLower();
+
+                        if (escape == "t") {
+                            return "\t";
+                        } else if (escape == "n") {
+                            return "\n";
+                        } else if (escape == "r") {
+                            return "\r";
+                        } else if (escape == "b") {
+                            return "\b";
+                        }
+                    } else if (match.Groups[2].Length > 0) {
+                        byte val;
+                        escape = match.Groups[2].Value.ToLower();
+
+                        if (byte.TryParse(escape, out val))
+                            return ((char)val).ToString();
+                    }
+                }
+
+                return match.Value;
+            });
         }
     }
 }

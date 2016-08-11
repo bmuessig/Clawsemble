@@ -1,30 +1,4 @@
-﻿;#define cond "Madeleine"
-;#define cond2 1
-
-#ifdef cond
-#err "cond"
-#elifdef cond2
-#err "cond2"
-#else
-#define cond "Benedikt"
-#endif
-
-#if (cond == "Felix")
-
-#err "Hi, great to see you again, Felix!"
-
-#elif (cond == "Benedikt")
-
-#err "Hi, Benedikt!"
-
-#else
-
-#err ("You aren't Felix nor Benedikt, still hi, " + cond + "!")
-
-#endif
-
-
-#define test 1
+﻿#define test 1
 
 #ifdef test
 
@@ -42,16 +16,8 @@
 #endif
 
 
-
-
-
-
-
-
-
-
 #ifndef test
-#err "well it seems this works too :)"
+;#err "well it seems this works too :)"
 #endif
 
 .CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
@@ -70,8 +36,8 @@ $12345678
 
 #define test        124
 #define test_1      $ffd00
-#define test___2    %f
-#def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)//5*37)
+#define test___2    'f'
+#def felix_the_hero (((567*-9345)*(-98/7))/34*86+(-32*4)%5*37)
 
 #undefine test___2
 

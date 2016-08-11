@@ -34,7 +34,7 @@ namespace Clawsemble
         CompilerDirective,
         String,
         Character,
-        CharacterEscape,
+        CharacterRemove,
         HexadecimalEscape,
         Word,
         Number,

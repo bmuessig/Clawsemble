@@ -3,15 +3,15 @@ using System.Collections.Generic;
 
 namespace Clawsemble
 {
-    public static class Instructions
+    public static class DefaultInstructions
     {
-        public static InstructionSignature[] Compile()
+        public static InstructionSignature[] CompileList()
         {
             var instrs = new List<InstructionSignature>();
 
             instrs.Add(new InstructionSignature("nop", 0x0));
             instrs.Add(new InstructionSignature("hcf", 0x1, InstructionArgumentType.Byte & InstructionArgumentType.String));
-            instrs.Add(new InstructionSignature("end", 0x2));
+            instrs.Add(new InstructionSignature("eop", 0x2));
             instrs.Add(new InstructionSignature("stsz", 0x3));
             instrs.Add(new InstructionSignature("plsz", 0x4));
             instrs.Add(new InstructionSignature("rick", 0x5));
