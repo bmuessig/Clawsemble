@@ -20,7 +20,7 @@
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <Externalconsole>true</Externalconsole>
-    <Commandlineparameters>Sample01.csm</Commandlineparameters>
+    <Commandlineparameters>Sample02.csm</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>full</DebugType>
@@ -48,6 +48,9 @@
     <Compile Include="CodeError.cs" />
     <Compile Include="CodeErrorType.cs" />
     <Compile Include="ArbitraryStack.cs" />
+    <Compile Include="InstructionSignature.cs" />
+    <Compile Include="InstructionArgumentType.cs" />
+    <Compile Include="Instructions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -118,6 +121,9 @@
   </ProjectExtensions>
   <ItemGroup>
     <None Include="Sample01.csm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Sample02.csm">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
