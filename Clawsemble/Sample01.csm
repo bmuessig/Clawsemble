@@ -1,4 +1,16 @@
-﻿#define test 1
+﻿.mod "string", 2
+.mod "file", 3
+
+
+
+
+
+
+
+
+
+
+#define test 1
 
 #ifdef test
 
@@ -46,13 +58,13 @@ $12345678
 #def sign_sol (-10 + 23 - 19 - 15 + 25 - 23 + 15)
 
 ; #err "Sample error" ; activate to trigger a intentional preprocessor error
-#err ("Unsolved: " + sign + ", Parantheses: " + sign_par + ", Solved: " + sign_sol) ; activate to trigger another preproc error
+; #err ("Unsolved: " + sign + ", Parantheses: " + sign_par + ", Solved: " + sign_sol) ; activate to trigger another preproc error
 ; yes, preprocessor allows adding strings together :)
 
 				; this metadata is required and has to be present
 .VERSION		0,2		; version expects an array of major and minor version
 
-.ctv testvar	$2d			; this defines a new constant testvar as $2d
+.db testvar	$2d			; this defines a new constant testvar as $2d
 
 .sym main				; main function, required
 	ldc  		42			; load the constant 42 onto the stack
@@ -68,3 +80,4 @@ $12345678
 .sym expr_test:(23+5)
 	ld		(233345 & (1 << 4))
 	mulc		(-25 + 26 + (-25))
+

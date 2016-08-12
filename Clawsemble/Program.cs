@@ -16,6 +16,15 @@ namespace Clawsemble
                 return;
             }
             Console.WriteLine("Tokenizing and preprocessing successful!");
+
+            var comp = new Compiler(preproc.Tokens, preproc.Files);
+            try {
+                comp.Compile();
+            } catch (CodeError error) {
+                Console.WriteLine(error.Message);
+                return;
+            }
+            Console.WriteLine("Compiling successful!");
         }
     }
 }

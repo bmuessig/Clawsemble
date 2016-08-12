@@ -13,6 +13,10 @@ namespace Clawsemble
         ExpectedString,
         ExpectedOperator,
         ExpectedExpression,
+        ExpectedSeperator,
+        ArgumentOutOfBounds,
+        WordInvalid,
+        WordUnknown,
         UnexpectedEOF,
         UnexpectedToken,
         ExpressionEmpty,
@@ -25,6 +29,7 @@ namespace Clawsemble
         StackUnderflow,
         StackOverflow,
         TypeMissmatch,
+        SignatureMissmatch,
         OperationInvalid,
         IfMissmatched
     }

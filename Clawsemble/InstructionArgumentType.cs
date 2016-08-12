@@ -14,7 +14,8 @@ namespace Clawsemble
         Data = 0x4,
         Function = 0x8,
         Number = 0x1F,
-        Array = String & Data
+        Array = String & Data,
+        Callback = Function & Byte
     }
 }
 
