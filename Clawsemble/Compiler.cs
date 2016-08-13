@@ -22,6 +22,8 @@ namespace Clawsemble
 
         public string[] Slots { get; private set; }
 
+        public CompilerBinaryType BinaryType { get; private set; }
+
         private const int MaxSlotNameLength = 6;
 
         public Compiler(List<Token>Tokens, List<string>Files, List<InstructionSignature> Instructions)
@@ -34,6 +36,7 @@ namespace Clawsemble
             this.Datablocks = new Dictionary<string, byte[]>();
             this.Symbols = new Dictionary<string, byte>();
             this.Slots = new string[16];
+            this.BinaryType = 0;
         }
 
         public Compiler(List<Token>Tokens, List<string>Files)
@@ -45,6 +48,7 @@ namespace Clawsemble
             this.Datablocks = new Dictionary<string, byte[]>();
             this.Symbols = new Dictionary<string, byte>();
             this.Slots = new string[16];
+            this.BinaryType = 0;
             Instructions = new List<InstructionSignature>();
             Instructions.AddRange(DefaultInstructions.CompileList());
         }
@@ -55,6 +59,7 @@ namespace Clawsemble
             Constants.Clear();
             Datablocks.Clear();
             Symbols.Clear();
+            BinaryType = 0;
             ClearArray(Slots);
         }
 
@@ -68,8 +73,52 @@ namespace Clawsemble
         public void Compile()
         {
             Cleanup();
+            int ptr = 0;
 
-            for (int ptr = 0; ptr < Tokens.Count; ptr++) {
+            // Find the required header and extract the bitness and executable target
+            for (; ptr < Tokens.Count; ptr++) {
+                if (Tokens[ptr].Type == TokenType.CompilerDirective) {
+                    if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
+                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty compiler directive!", Tokens[ptr], GetFilename(Tokens[ptr]));
+                    string directive = Tokens[ptr].Content.Trim().ToLower();
+
+                    if (directive != "cwx" && directive != "cwl")
+                        throw new CodeError(CodeErrorType.ExpectedHeader, "Expected executable or library header!", Tokens[ptr], GetFilename(Tokens[ptr]));
+
+                    if (directive == "cwx") { // executable
+                        BinaryType = CompilerBinaryType.Executable;
+                    } else if (directive == "cwl") { // library
+                        BinaryType = CompilerBinaryType.Library;
+                    }
+
+                    if (!IsBeforeEOF(ptr, Tokens.Count, 2))
+                        throw new CodeError(CodeErrorType.UnexpectedEOF,
+                            Tokens[Tokens.Count - 1],
+                            GetFilename(Tokens[Tokens.Count - 1]));
+                    if (Tokens[++ptr].Type != TokenType.Seperator)
+                        throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[ptr], GetFilename(Tokens[ptr]));
+                    if (Tokens[++ptr].Type != TokenType.Number)
+                        throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[ptr], GetFilename(Tokens[ptr]));
+                    byte bits;
+                    if (!byte.TryParse(Tokens[ptr].Content, out bits))
+                        throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid bits constant!", Tokens[ptr], GetFilename(Tokens[ptr]));
+                    if (bits == 16) {
+                        BinaryType |= CompilerBinaryType.Bits16;
+                    } else if (bits == 32) {
+                        BinaryType |= CompilerBinaryType.Bits32;
+                    } else if (bits == 64) {
+                        BinaryType |= CompilerBinaryType.Bits64;
+                    } else
+                        throw new CodeError(CodeErrorType.ArgumentOutOfBounds, "Only 16, 32 and 64 bits are supported!",
+                            Tokens[ptr], GetFilename(Tokens[ptr]));
+                    ptr++;
+                    break;
+                } else if (Tokens[ptr].Type != TokenType.Break)
+                    throw new CodeError(CodeErrorType.ExpectedHeader, "Expected initial header!", Tokens[ptr], GetFilename(Tokens[ptr]));
+            }
+
+            // Perform the actual compilation
+            for (; ptr < Tokens.Count; ptr++) {
                 if (Tokens[ptr].Type == TokenType.CompilerDirective) {
                     if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
                         throw new CodeError(CodeErrorType.UnknownDirective, "Empty compiler directive!", Tokens[ptr], GetFilename(Tokens[ptr]));
@@ -82,8 +131,8 @@ namespace Clawsemble
                     } else if (directive == "mod" || directive == "module") {
                         if (!IsBeforeEOF(ptr, Tokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
-                                Tokens[(Tokens.Count > 0) ? Tokens.Count - 1 : 0],
-                                GetFilename(Tokens[(Tokens.Count > 0) ? Tokens.Count - 1 : 0]));
+                                Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1]));
                         if (Tokens[++ptr].Type != TokenType.String)
                             throw new CodeError(CodeErrorType.ExpectedString, Tokens[ptr], GetFilename(Tokens[ptr]));
                         if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
@@ -99,7 +148,7 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[ptr], GetFilename(Tokens[ptr]));
                         byte slot;
                         if (!byte.TryParse(Tokens[ptr].Content, out slot))
-                            throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid slot!", Tokens[ptr], GetFilename(Tokens[ptr]));
+                            throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid slot constant!", Tokens[ptr], GetFilename(Tokens[ptr]));
                         if (slot >= Slots.Length)
                             throw new CodeError(CodeErrorType.ArgumentOutOfBounds,
                                 string.Format("There are only {0} slots!", Slots.Length),
@@ -109,6 +158,10 @@ namespace Clawsemble
                                 string.Format("Slot {0} already occupied with \"{1}\"!", slot, Slots[slot]),
                                 Tokens[ptr], GetFilename(Tokens[ptr]));
                         Slots[slot] = module;
+                        if (IsBeforeEOF(ptr, Tokens.Count)) { // maybe remove this block again and permit multiple statements per line?
+                            if (Tokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedEOL, Tokens[ptr], GetFilename(Tokens[ptr]));
+                        }
                     }
                 } else if (Tokens[ptr].Type == TokenType.Word) {
                     if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
@@ -157,7 +210,13 @@ namespace Clawsemble
                 argnum++;
 
                 if (arg == InstructionArgumentType.Number) {
-                    
+                    if (Tokens[Pointer].Type != TokenType.Number)
+                        throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer]));
+
+                    long val;
+                    if (!long.TryParse(Tokens[Pointer].Content, out val))
+                        throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", Tokens[Pointer], GetFilename(Tokens[Pointer]));
+                    Bytes.AddRange(BitConverter.GetBytes(val));
                 }
 
                 if ((arg & InstructionArgumentType.Function) > 0) {
@@ -180,7 +239,7 @@ namespace Clawsemble
                 }
 
                 throw new CodeError(CodeErrorType.SignatureMissmatch,
-                    string.Format("The constant does not match the argument {0} signature ({1}) of the instruction \"{2}\"!",
+                    string.Format("The constant does not match argument {0}'s signature ({1}) of the instruction \"{2}\"!",
                         argnum, arg.ToString(), Instruction.Mnemoric),
                     Tokens[Pointer], GetFilename(Tokens[Pointer]));
             }

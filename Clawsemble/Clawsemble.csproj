@@ -51,6 +51,7 @@
     <Compile Include="InstructionSignature.cs" />
     <Compile Include="InstructionArgumentType.cs" />
     <Compile Include="DefaultInstructions.cs" />
+    <Compile Include="CompilerBinaryType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

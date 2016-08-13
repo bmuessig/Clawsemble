@@ -1,15 +1,4 @@
-﻿.mod "string", 2
-.mod "file", 3
-
-
-
-
-
-
-
-
-
-
+﻿
 #define test 1
 
 #ifdef test
@@ -32,7 +21,8 @@
 ;#err "well it seems this works too :)"
 #endif
 
-.CWX:16				; required, CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
+.CWX:16				; required, MUST be first directive in every file,
+				; CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
 
 				; this metadata is optional and will be imported into the executable
