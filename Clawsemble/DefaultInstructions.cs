@@ -10,16 +10,17 @@ namespace Clawsemble
             var instrs = new List<InstructionSignature>();
 
             instrs.Add(new InstructionSignature("nop", 0x0));
-            instrs.Add(new InstructionSignature("hcf", 0x1, InstructionArgumentType.Byte & InstructionArgumentType.String));
-            instrs.Add(new InstructionSignature("eop", 0x2));
-            instrs.Add(new InstructionSignature("stsz", 0x3));
+            instrs.Add(new InstructionSignature("vnfo", 0x1));
+            instrs.Add(new InstructionSignature("stsz", 0x2));
+            instrs.Add(new InstructionSignature("casz", 0x3));
             instrs.Add(new InstructionSignature("plsz", 0x4));
             instrs.Add(new InstructionSignature("rick", 0x5));
-            instrs.Add(new InstructionSignature("vnfo", 0x6));
-            instrs.Add(new InstructionSignature("brk", 0x7, InstructionArgumentType.Byte));
-            instrs.Add(new InstructionSignature("dbps", 0x8, InstructionArgumentType.String));
-            instrs.Add(new InstructionSignature("dbda", 0x9));
-            instrs.Add(new InstructionSignature("dbdv", 0xa));
+            instrs.Add(new InstructionSignature("hcf", 0x6, InstructionArgumentType.Byte & InstructionArgumentType.String));
+            instrs.Add(new InstructionSignature("eop", 0x7));
+            instrs.Add(new InstructionSignature("brk", 0x8, InstructionArgumentType.Byte));
+            instrs.Add(new InstructionSignature("dbps", 0x9, InstructionArgumentType.String));
+            instrs.Add(new InstructionSignature("dbda", 0xa));
+            instrs.Add(new InstructionSignature("dbdv", 0xb));
             instrs.Add(new InstructionSignature("mdp", 0xc, InstructionArgumentType.String));
             instrs.Add(new InstructionSignature("mdl", 0xd, InstructionArgumentType.Byte));
             instrs.Add(new InstructionSignature("mdv", 0xe, InstructionArgumentType.Byte));

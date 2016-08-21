@@ -125,7 +125,27 @@ namespace Clawsemble
                     string directive = Tokens[ptr].Content.Trim().ToLower();
 
                     if (directive == "sym" || directive == "symbol") {
+                        if (!IsBeforeEOF(ptr, Tokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF,
+                                Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1]));
+                        if (Tokens[++ptr].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[ptr], GetFilename(Tokens[ptr]));
+                        if (IsBeforeEOF(ptr, Tokens.Count, 2)) {
+                            // now we want to check if we got an optional fixed function id
+                            if (Tokens[ptr + 1].Type != TokenType.Seperator && Tokens[ptr + 1].Type != TokenType.Break) {
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr + 1], GetFilename(Tokens[ptr + 1]));
+                            }
+                            if (Tokens[ptr + 1].Type == TokenType.Seperator) {
 
+                            } else if (Tokens[ptr + 1].Type != TokenType.Break) {
+
+                            }
+                        }
+                        if (IsBeforeEOF(ptr, Tokens.Count)) {
+                            if (Tokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr], GetFilename(Tokens[ptr]));
+                        }
                     } else if (directive == "db" || directive == "data") {
 
                     } else if (directive == "mod" || directive == "module") {
@@ -158,9 +178,9 @@ namespace Clawsemble
                                 string.Format("Slot {0} already occupied with \"{1}\"!", slot, Slots[slot]),
                                 Tokens[ptr], GetFilename(Tokens[ptr]));
                         Slots[slot] = module;
-                        if (IsBeforeEOF(ptr, Tokens.Count)) { // maybe remove this block again and permit multiple statements per line?
+                        if (IsBeforeEOF(ptr, Tokens.Count)) {
                             if (Tokens[++ptr].Type != TokenType.Break)
-                                throw new CodeError(CodeErrorType.ExpectedEOL, Tokens[ptr], GetFilename(Tokens[ptr]));
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr], GetFilename(Tokens[ptr]));
                         }
                     }
                 } else if (Tokens[ptr].Type == TokenType.Word) {

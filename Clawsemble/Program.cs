@@ -23,6 +23,9 @@ namespace Clawsemble
             } catch (CodeError error) {
                 Console.WriteLine(error.Message);
                 return;
+            } catch (Exception ex) {
+                Console.WriteLine(ex.Message);
+                return;
             }
             Console.WriteLine("Compiling successful!");
         }

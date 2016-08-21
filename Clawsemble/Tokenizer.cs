@@ -84,9 +84,13 @@ namespace Clawsemble
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     }
                 } else if (chr == ':' || chr == ',') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.Seperator;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    if (type != TokenType.Seperator) {
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        type = TokenType.Seperator;
+                    } else {
+                        type = TokenType.Break;
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    }
                 } else if (chr == '!') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.Not;

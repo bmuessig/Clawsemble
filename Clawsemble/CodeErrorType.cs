@@ -14,7 +14,7 @@ namespace Clawsemble
         ExpectedOperator,
         ExpectedExpression,
         ExpectedSeperator,
-        ExpectedEOL,
+        ExpectedBreak,
         ExpectedHeader,
         ArgumentOutOfBounds,
         WordInvalid,
