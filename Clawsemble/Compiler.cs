@@ -131,17 +131,31 @@ namespace Clawsemble
                                 GetFilename(Tokens[Tokens.Count - 1]));
                         if (Tokens[++ptr].Type != TokenType.Word)
                             throw new CodeError(CodeErrorType.ExpectedWord, Tokens[ptr], GetFilename(Tokens[ptr]));
+                        
+                        string symname;
+                        byte symid;
+
+                        if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
+                            throw new CodeError(CodeErrorType.ConstantInvalid, "Symbol name can't be empty!", Tokens[ptr], GetFilename(Tokens[ptr]));
+                        symname = Tokens[ptr].Content.Trim();
+
                         if (IsBeforeEOF(ptr, Tokens.Count, 2)) {
                             // now we want to check if we got an optional fixed function id
-                            if (Tokens[ptr + 1].Type != TokenType.Seperator && Tokens[ptr + 1].Type != TokenType.Break) {
-                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr + 1], GetFilename(Tokens[ptr + 1]));
-                            }
                             if (Tokens[ptr + 1].Type == TokenType.Seperator) {
-
+                                if (Tokens[++ptr].Type != TokenType.Number)
+                                    throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[ptr], GetFilename(Tokens[ptr]));
+                                // we got a fixed id
+                                if (!byte.TryParse(Tokens[ptr].Content, out symid))
+                                    throw new CodeError(CodeErrorType.ConstantInvalid, Tokens[ptr], GetFilename(Tokens[ptr]));
                             } else if (Tokens[ptr + 1].Type != TokenType.Break) {
-
-                            }
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr + 1], GetFilename(Tokens[ptr + 1]));
+                            } else
+                                continue;
                         }
+
+                        // process the gathered information
+
+                        // make sure the line is terminated here
                         if (IsBeforeEOF(ptr, Tokens.Count)) {
                             if (Tokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr], GetFilename(Tokens[ptr]));
@@ -182,6 +196,14 @@ namespace Clawsemble
                             if (Tokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[ptr], GetFilename(Tokens[ptr]));
                         }
+                    } else if (directive == "ttl" || directive == "title") {
+
+                    } else if (directive == "aut" || directive == "author") {
+
+                    } else if (directive == "cpy" || directive == "copyright") {
+
+                    } else if (directive == "ver" || directive == "version") {
+
                     }
                 } else if (Tokens[ptr].Type == TokenType.Word) {
                     if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
@@ -203,19 +225,6 @@ namespace Clawsemble
                 }
             }
         }
-
-        /*
-         } else if (directive == "mod" || directive == "module") {
-                        
-                    } else if (directive == "ttl" || directive == "title") {
-
-                    } else if (directive == "aut" || directive == "author") {
-
-                    } else if (directive == "cpy" || directive == "copyright") {
-
-                    } else if (directive == "ver" || directive == "version") {
-
-        */
 
         private void DoInstruction(InstructionSignature Instruction, ref int Pointer, List<byte> Bytes)
         {
@@ -259,7 +268,7 @@ namespace Clawsemble
                 }
 
                 throw new CodeError(CodeErrorType.SignatureMissmatch,
-                    string.Format("The constant does not match argument {0}'s signature ({1}) of the instruction \"{2}\"!",
+                    string.Format("The constant does not match the signature ({1}) of argument #{0} of the instruction \"{2}\"!",
                         argnum, arg.ToString(), Instruction.Mnemoric),
                     Tokens[Pointer], GetFilename(Tokens[Pointer]));
             }

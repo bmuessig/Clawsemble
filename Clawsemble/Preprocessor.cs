@@ -10,11 +10,13 @@ namespace Clawsemble
         public List<Token> Tokens;
         public List<string> Files;
         public Dictionary<string, Constant> Defines;
+        public InstructionSignature[] ValidInstructions;
 
         public Preprocessor()
         {
             Tokens = new List<Token>();
             Files = new List<string>();
+            ValidInstructions = DefaultInstructions.CompileList();
             Defines = new Dictionary<string, Constant>();
             Defines.Add("NULL", new Constant(0));
         }
@@ -23,6 +25,7 @@ namespace Clawsemble
         {
             Tokens.Clear();
             Files.Clear();
+            ValidInstructions = DefaultInstructions.CompileList();
             Defines.Clear();
             Defines.Add("NULL", new Constant(0));
         }
@@ -38,19 +41,19 @@ namespace Clawsemble
            
             Files.Add(Filename);
 
-            for (int i = 0; i < ftokens.Count; i++) {
-                if (ftokens[i].Type == TokenType.PreprocessorDirective) {
-                    if (string.IsNullOrEmpty(ftokens[i].Content))
-                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", ftokens[i], Filename);
+            for (int ptr = 0; ptr < ftokens.Count; ptr++) {
+                if (ftokens[ptr].Type == TokenType.PreprocessorDirective) {
+                    if (string.IsNullOrEmpty(ftokens[ptr].Content))
+                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", ftokens[ptr], Filename);
 
-                    directive = ftokens[i].Content.Trim().ToLower();
+                    directive = ftokens[ptr].Content.Trim().ToLower();
                     if (directive == "if" || directive == "elif" || directive == "elseif") {
                         if (directive == "elif" || directive == "elseif") {
                             if (ifStack.Count == 0)
-                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[ptr], Filename);
                             if (ifStack.Peek()) {
                                 try {
-                                    SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                                    SkipAhead(ref ptr, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
@@ -59,14 +62,14 @@ namespace Clawsemble
                             }
                         }
 
-                        if (!IsBeforeEOF(i, ftokens.Count))
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i - 1].Line, Filename);
+                        if (!IsBeforeEOF(ptr, ftokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[ptr - 1].Line, Filename);
                         
-                        if (ftokens[++i].Type == TokenType.ParanthesisOpen) {
+                        if (ftokens[++ptr].Type == TokenType.ParanthesisOpen) {
                             Constant eval;
                             bool result;
                             try {
-                                eval = EvaluateExpression(ref i, ftokens);
+                                eval = EvaluateExpression(ref ptr, ftokens);
                             } catch (CodeError error) {
                                 error.Filename = Filename;
                                 throw error;
@@ -93,22 +96,22 @@ namespace Clawsemble
                                 }
 
                                 try {
-                                    SkipAhead(ref i, ftokens, ifStack, false); // skip to the next block
+                                    SkipAhead(ref ptr, ftokens, ifStack, false); // skip to the next block
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
                                 }
                             }
                         } else
-                            throw new CodeError(CodeErrorType.ExpectedExpression, ftokens[i], Filename);
+                            throw new CodeError(CodeErrorType.ExpectedExpression, ftokens[ptr], Filename);
                     } else if (directive == "ifdef" || directive == "ifndef" ||
                                directive == "elifdef" || directive == "elseifdef" || directive == "elifndef" || directive == "elseifndef") {
                         if (directive == "elifdef" || directive == "elseifdef" || directive == "elifndef" || directive == "elseifndef") {
                             if (ifStack.Count == 0)
-                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                                throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[ptr], Filename);
                             if (ifStack.Peek()) {
                                 try {
-                                    SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                                    SkipAhead(ref ptr, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
@@ -117,15 +120,15 @@ namespace Clawsemble
                             }
                         }
                         
-                        if (ftokens[++i].Type == TokenType.Word) {
-                            if (!string.IsNullOrEmpty(ftokens[i].Content)) {
-                                if (Defines.ContainsKey(ftokens[i].Content.Trim())) { // the key exists
+                        if (ftokens[++ptr].Type == TokenType.Word) {
+                            if (!string.IsNullOrEmpty(ftokens[ptr].Content)) {
+                                if (Defines.ContainsKey(ftokens[ptr].Content.Trim())) { // the key exists
                                     if (directive == "ifdef") { // key exists AND we have an ifdef = success
                                         ifStack.Push(true); // add that if is solved
                                     } else if (directive == "ifndef") { // key exists AND we have an ifndef = no success
                                         ifStack.Push(false); // add that if is not solved and start search for an else
                                         try {
-                                            SkipAhead(ref i, ftokens, ifStack, false); // and let's skip to the next interesting block
+                                            SkipAhead(ref ptr, ftokens, ifStack, false); // and let's skip to the next interesting block
                                         } catch (CodeError error) {
                                             error.Filename = Filename;
                                             throw error;
@@ -135,7 +138,7 @@ namespace Clawsemble
                                     } else if (directive == "elifndef" || directive == "elseifndef") {
                                         ifStack.Change(false); // no success; lets search for an else
                                         try {
-                                            SkipAhead(ref i, ftokens, ifStack, false); // skip to the next interesting block
+                                            SkipAhead(ref ptr, ftokens, ifStack, false); // skip to the next interesting block
                                         } catch (CodeError error) {
                                             error.Filename = Filename;
                                             throw error;
@@ -145,7 +148,7 @@ namespace Clawsemble
                                     if (directive == "ifdef") { // key exists AND we have an ifdef = success
                                         ifStack.Push(false); // add that if is not solved and start search for an else
                                         try {
-                                            SkipAhead(ref i, ftokens, ifStack, false); // and let's skip to the next interesting block
+                                            SkipAhead(ref ptr, ftokens, ifStack, false); // and let's skip to the next interesting block
                                         } catch (CodeError error) {
                                             error.Filename = Filename;
                                             throw error;
@@ -155,7 +158,7 @@ namespace Clawsemble
                                     } else if (directive == "elifdef" || directive == "elseifdef") { // we have a key and ELSEifdef
                                         ifStack.Change(false); // no success; lets search for an else
                                         try {
-                                            SkipAhead(ref i, ftokens, ifStack, false); // skip to the next interesting block
+                                            SkipAhead(ref ptr, ftokens, ifStack, false); // skip to the next interesting block
                                         } catch (CodeError error) {
                                             error.Filename = Filename;
                                             throw error;
@@ -165,15 +168,15 @@ namespace Clawsemble
                                     }
                                 }
                             } else
-                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i]);
+                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[ptr]);
                         } else
-                            throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i]);
+                            throw new CodeError(CodeErrorType.ExpectedWord, ftokens[ptr]);
                     } else if (directive == "else") {
                         if (ifStack.Count == 0)
-                            throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[i], Filename);
+                            throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", ftokens[ptr], Filename);
                         if (ifStack.Peek()) {
                             try {
-                                SkipAhead(ref i, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
+                                SkipAhead(ref ptr, ftokens, ifStack, true); // we have already successfully handled the if, skip to endif
                             } catch (CodeError error) {
                                 error.Filename = Filename;
                                 throw error;
@@ -183,114 +186,123 @@ namespace Clawsemble
                         ifStack.Change(true); // we assume nothing comes after the true block so we just jump into it
                     } else if (directive == "endif") {
                         if (ifStack.Count == 0)
-                            throw new CodeError(CodeErrorType.IfMissmatched, "Too many closing if's!", ftokens[i], Filename);
+                            throw new CodeError(CodeErrorType.IfMissmatched, "Too many closing if's!", ftokens[ptr], Filename);
                         ifStack.Pop(); // remove one if from the stack
                     } else if (directive == "inc" || directive == "include") {
-                        if (IsBeforeEOF(i, ftokens.Count)) {
-                            if (ftokens[i + 1].Type == TokenType.String) {
-                                DoFile(ftokens[++i].Content);
+                        if (IsBeforeEOF(ptr, ftokens.Count)) {
+                            if (ftokens[ptr + 1].Type == TokenType.String) {
+                                DoFile(ftokens[++ptr].Content);
                             } else
-                                throw new CodeError(CodeErrorType.ExpectedString, ftokens[i], Filename);
+                                throw new CodeError(CodeErrorType.ExpectedString, ftokens[ptr], Filename);
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[ptr].Line, Filename);
                     } else if (directive == "err" || directive == "error") {
-                        if (i + 1 < ftokens.Count) {
-                            if (ftokens[i + 1].Type == TokenType.String) {
-                                i++;
-                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Content, ftokens[i].Line, Filename);
-                            } else if (ftokens[i + 1].Type == TokenType.Number || ftokens[i + 1].Type == TokenType.Character ||
-                                       ftokens[i + 1].Type == TokenType.CharacterRemove || ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
-                                       ftokens[i + 1].Type == TokenType.Word) {
+                        if (ptr + 1 < ftokens.Count) {
+                            if (ftokens[ptr + 1].Type == TokenType.String) {
+                                ptr++;
+                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[ptr].Content, ftokens[ptr].Line, Filename);
+                            } else if (ftokens[ptr + 1].Type == TokenType.Number || ftokens[ptr + 1].Type == TokenType.Character ||
+                                       ftokens[ptr + 1].Type == TokenType.CharacterRemove || ftokens[ptr + 1].Type == TokenType.HexadecimalEscape ||
+                                       ftokens[ptr + 1].Type == TokenType.Word) {
                                 Constant eval;
-                                i++;
+                                ptr++;
                                 try {
-                                    eval = EvaluateExpression(ref i, ftokens, 1);
+                                    eval = EvaluateExpression(ref ptr, ftokens, 1);
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
                                 }
                                 if (eval.Type == ConstantType.Numeric)
-                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[ptr].Line, Filename);
                                 else if (eval.Type == ConstantType.String)
-                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[ptr].Line, Filename);
                                 else
-                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
-                            } else if (ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
+                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
+                            } else if (ftokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
                                 Constant eval;
-                                i++;
+                                ptr++;
                                 try {
-                                    eval = EvaluateExpression(ref i, ftokens);
+                                    eval = EvaluateExpression(ref ptr, ftokens);
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
                                 }
                                 if (eval.Type == ConstantType.Numeric)
-                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.Number.ToString(), ftokens[ptr].Line, Filename);
                                 else if (eval.Type == ConstantType.String)
-                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.IntentionalError, eval.String, ftokens[ptr].Line, Filename);
                                 else
-                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
+                                    throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
                             } else
-                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
+                                throw new CodeError(CodeErrorType.IntentionalError, ftokens[ptr].Line, Filename);
                         } else
-                            throw new CodeError(CodeErrorType.IntentionalError, ftokens[i].Line, Filename);
+                            throw new CodeError(CodeErrorType.IntentionalError, ftokens[ptr].Line, Filename);
                     } else if (directive == "def" || directive == "define") {
                         string key = "";
-                        Constant value = new Constant();
+                        Constant value = new Constant(1);
 
-                        if (i + 2 < ftokens.Count) {
-                            if (ftokens[i + 1].Type == TokenType.Word)
-                                key = ftokens[++i].Content.Trim();
-                            else
-                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i], Filename);
-                            if (ftokens[i + 1].Type == TokenType.String ||
-                                ftokens[i + 1].Type == TokenType.HexadecimalEscape ||
-                                ftokens[i + 1].Type == TokenType.Character ||
-                                ftokens[i + 1].Type == TokenType.Number ||
-                                ftokens[i + 1].Type == TokenType.Word) {
-                                i++;
+                        if (IsBeforeEOF(ptr, ftokens.Count, 2)) {
+                            if (ftokens[++ptr].Type != TokenType.Word)
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[ptr], Filename);
+                            if (string.IsNullOrEmpty(ftokens[ptr].Content))
+                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[ptr], Filename);
+                            if (IsNameReserved(ftokens[ptr].Content.Trim()))
+                                throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!", ftokens[ptr], Filename);
+                            key = ftokens[ptr].Content.Trim();
+
+                            if (ftokens[ptr + 1].Type == TokenType.String ||
+                                ftokens[ptr + 1].Type == TokenType.HexadecimalEscape ||
+                                ftokens[ptr + 1].Type == TokenType.Character ||
+                                ftokens[ptr + 1].Type == TokenType.Number ||
+                                ftokens[ptr + 1].Type == TokenType.Word) {
+                                ptr++;
                                 try {
-                                    value = EvaluateExpression(ref i, ftokens, 1);
+                                    value = EvaluateExpression(ref ptr, ftokens, 1);
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
                                 }
-                            } else if (ftokens[i + 1].Type == TokenType.ParanthesisOpen) {
-                                i++;
+                            } else if (ftokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
+                                ptr++;
                                 try {
-                                    value = EvaluateExpression(ref i, ftokens);
+                                    value = EvaluateExpression(ref ptr, ftokens);
                                 } catch (CodeError error) {
                                     error.Filename = Filename;
                                     throw error;
                                 }
                             }
-                        } else if (IsBeforeEOF(i, ftokens.Count)) {
-                            if (ftokens[i + 1].Type == TokenType.Word)
-                                key = ftokens[++i].Content.Trim();
-                            else
-                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i], Filename);
+                        } else if (IsBeforeEOF(ptr, ftokens.Count)) {
+                            if (ftokens[++ptr].Type != TokenType.Word)
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[ptr], Filename);
+                            if (string.IsNullOrEmpty(ftokens[ptr].Content))
+                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[ptr], Filename);
+                            if (IsNameReserved(ftokens[ptr].Content.Trim()))
+                                throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!", ftokens[ptr], Filename);
+                            key = ftokens[ptr].Content.Trim();
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
-						
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[ptr].Line, Filename);
+                        
                         Defines.Add(key, value);
                     } else if (directive == "undef" || directive == "undefine") {
-                        if (IsBeforeEOF(i, ftokens.Count)) {
-                            if (ftokens[++i].Type == TokenType.Word) {
-                                if (string.IsNullOrEmpty(ftokens[i].Content))
-                                    throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[i], Filename);
-                                if (Defines.ContainsKey(ftokens[i].Content.Trim()))
-                                    Defines.Remove(ftokens[i].Content.Trim());
+                        if (IsBeforeEOF(ptr, ftokens.Count)) {
+                            if (ftokens[++ptr].Type == TokenType.Word) {
+                                if (string.IsNullOrEmpty(ftokens[ptr].Content))
+                                    throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", ftokens[ptr], Filename);
+                                if (IsNameReserved(ftokens[ptr].Content.Trim()))
+                                    throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!", ftokens[ptr], Filename);
+                                if (Defines.ContainsKey(ftokens[ptr].Content.Trim()))
+                                    Defines.Remove(ftokens[ptr].Content.Trim());
                             } else
-                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[i], Filename);
+                                throw new CodeError(CodeErrorType.ExpectedWord, ftokens[ptr], Filename);
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[i].Line, Filename);
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[ptr].Line, Filename);
                     } else
-                        throw new CodeError(CodeErrorType.UnknownDirective, ftokens[i], Filename);
-                } else if (ftokens[i].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
-                    int origi = i;
+                        throw new CodeError(CodeErrorType.UnknownDirective, ftokens[ptr], Filename);
+                } else if (ftokens[ptr].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
+                    int origi = ptr;
                     Constant eval;
                     try {
-                        eval = EvaluateExpression(ref i, ftokens);
+                        eval = EvaluateExpression(ref ptr, ftokens);
                     } catch (CodeError error) {
                         error.Filename = Filename;
                         throw error;
@@ -304,49 +316,49 @@ namespace Clawsemble
                             Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else
-                        throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[i].Line, Filename);
-                } else if (ftokens[i].Type == TokenType.Number || ftokens[i].Type == TokenType.Character ||
-                           ftokens[i].Type == TokenType.HexadecimalEscape) {
+                        throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
+                } else if (ftokens[ptr].Type == TokenType.Number || ftokens[ptr].Type == TokenType.Character ||
+                           ftokens[ptr].Type == TokenType.HexadecimalEscape) {
                     Constant eval;
                     try {
-                        eval = new Constant(ftokens[i]);
+                        eval = new Constant(ftokens[ptr]);
                     } catch (Exception ex) {
-                        throw new CodeError(CodeErrorType.ConstantInvalid, ex.Message, ftokens[i], 0, ftokens[i].Position, Filename);
+                        throw new CodeError(CodeErrorType.ConstantInvalid, ex.Message, ftokens[ptr], 0, ftokens[ptr].Position, Filename);
                     }
 
                     Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                        Line = ftokens[i].Line, File = (uint)Files.Count
+                        Line = ftokens[ptr].Line, File = (uint)Files.Count
                     });
-                } else if (ftokens[i].Type == TokenType.Word) {
-                    if (Defines.ContainsKey(ftokens[i].Content)) {
-                        Constant eval = Defines[ftokens[i].Content];
+                } else if (ftokens[ptr].Type == TokenType.Word) {
+                    if (Defines.ContainsKey(ftokens[ptr].Content)) {
+                        Constant eval = Defines[ftokens[ptr].Content];
 
                         if (eval.Type == ConstantType.Numeric) {
                             Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                                Line = ftokens[i].Line, File = (uint)Files.Count
+                                Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                         } else if (eval.Type == ConstantType.String)
                             Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
-                                Line = ftokens[i].Line, File = (uint)Files.Count
+                                Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                     } else { // if the word is not resolvable, add it again
-                        Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
-                            Line = ftokens[i].Line, File = (uint)Files.Count
+                        Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
+                            Line = ftokens[ptr].Line, File = (uint)Files.Count
                         });
                     }
-                } else if (ftokens[i].Type == TokenType.Break && Tokens.Count > 0) {
+                } else if (ftokens[ptr].Type == TokenType.Break && Tokens.Count > 0) {
                     if (Tokens[Tokens.Count - 1].Type != TokenType.Break) {
-                        Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
-                            Line = ftokens[i].Line, File = (uint)Files.Count
+                        Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
+                            Line = ftokens[ptr].Line, File = (uint)Files.Count
                         });
                     } // else drop it as we don't want newlines following each other
-                } else if (IsOp(ftokens[i])) {
+                } else if (IsOp(ftokens[ptr])) {
                     throw new CodeError(CodeErrorType.ExpressionUncontained, "Expressions need to be surrounded by parantheses!",
-                        ftokens[i], Filename);
-                } else if (ftokens[i].Type != TokenType.Comment && ftokens[i].Type != TokenType.CharacterRemove) {
+                        ftokens[ptr], Filename);
+                } else if (ftokens[ptr].Type != TokenType.Comment && ftokens[ptr].Type != TokenType.CharacterRemove) {
                     // we cannot deal with the token just yet
-                    Tokens.Add(new Token() { Type = ftokens[i].Type, Content = ftokens[i].Content,
-                        Line = ftokens[i].Line, File = (uint)Files.Count
+                    Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
+                        Line = ftokens[ptr].Line, File = (uint)Files.Count
                     });
                 }
             }
@@ -662,6 +674,21 @@ namespace Clawsemble
                 return Associativity.LeftToRight;
             } else
                 return Associativity.None;
+        }
+
+        private bool IsNameReserved(string Key)
+        {
+            // check reserved words
+            if (Key == "NULL")
+                return true;
+
+            // check collisions with instructions
+            foreach (InstructionSignature instr in ValidInstructions) {
+                if (instr.Mnemoric.ToLower() == Key.ToLower())
+                    return true;
+            }
+
+            return false;
         }
     }
 }
