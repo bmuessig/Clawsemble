@@ -246,9 +246,11 @@ namespace Clawsemble
                     if (!long.TryParse(Tokens[Pointer].Content, out val))
                         throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", Tokens[Pointer], GetFilename(Tokens[Pointer]));
                     Bytes.AddRange(BitConverter.GetBytes(val));
+
+                    continue;
                 }
 
-                if ((arg & InstructionArgumentType.Function) > 0) {
+                if ((arg & InstructionArgumentType.Label) > 0) {
 
                 }
 
@@ -265,6 +267,7 @@ namespace Clawsemble
                         throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", Tokens[Pointer], GetFilename(Tokens[Pointer]));
                     Bytes.Add(val);
 
+                    continue;
                 }
 
                 throw new CodeError(CodeErrorType.SignatureMissmatch,
@@ -311,12 +314,30 @@ namespace Clawsemble
             }
         }
 
-        private int RegisterConstant(ulong[] Constant)
+        private byte[] NumberToBytes(long val)
+        {
+            CompilerBinaryType bits = BinaryType & CompilerBinaryType.Bits;
+
+            switch (bits) {
+            case CompilerBinaryType.Bits8:
+                return BitConverter.GetBytes((sbyte)(val & sbyte.MaxValue));
+            case CompilerBinaryType.Bits16:
+                return BitConverter.GetBytes((short)(val & short.MaxValue));
+            case CompilerBinaryType.Bits32:
+                return BitConverter.GetBytes((int)(val & int.MaxValue));
+            case CompilerBinaryType.Bits64:
+                return BitConverter.GetBytes((long)(val & long.MaxValue));
+            }
+
+            return null;
+        }
+
+        private int RegisterConstant(long[] Constant)
         {
             var bytes = new List<byte>();
 
-            foreach (ulong val in Constant) {
-                bytes.AddRange(BitConverter.GetBytes(val)); 
+            foreach (long val in Constant) {
+                bytes.AddRange(NumberToBytes(val)); 
             }
 
             return RegisterConstant(bytes.ToArray());
@@ -327,14 +348,14 @@ namespace Clawsemble
             return RegisterConstant(System.Text.ASCIIEncoding.ASCII.GetBytes(Constant));
         }
 
-        private bool IsValidByte(int val)
-        {
-            return (bool)(((uint)val) <= 255);
-        }
-
         private string GetFilename(Token Token)
         {
             return Files[(int)(Token.File - 1)];
+        }
+
+        private static bool IsValidByte(int val)
+        {
+            return (bool)(((uint)val) <= 255);
         }
     }
 }
