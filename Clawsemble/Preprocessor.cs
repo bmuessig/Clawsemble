@@ -684,7 +684,7 @@ namespace Clawsemble
 
             // check collisions with instructions
             foreach (InstructionSignature instr in ValidInstructions) {
-                if (instr.Mnemoric.ToLower() == Key.ToLower())
+                if (instr.Mnemonic.ToLower() == Key.ToLower())
                     return true;
             }
 

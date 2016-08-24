@@ -4,7 +4,7 @@ namespace Clawsemble
 {
     public struct InstructionSignature
     {
-        public string Mnemoric { get; private set; }
+        public string Mnemonic { get; private set; }
 
         public byte Code { get; private set; }
 
@@ -12,7 +12,7 @@ namespace Clawsemble
 
         public InstructionSignature(string Mnemoric, byte Code, params InstructionArgumentType[] Arguments)
         {
-            this.Mnemoric = Mnemoric;
+            this.Mnemonic = Mnemoric;
             this.Code = Code;
             this.Arguments = Arguments;
         }

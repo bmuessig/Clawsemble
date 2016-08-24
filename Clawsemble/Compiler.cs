@@ -272,7 +272,7 @@ namespace Clawsemble
 
                 throw new CodeError(CodeErrorType.SignatureMissmatch,
                     string.Format("The constant does not match the signature ({1}) of argument #{0} of the instruction \"{2}\"!",
-                        argnum, arg.ToString(), Instruction.Mnemoric),
+                        argnum, arg.ToString(), Instruction.Mnemonic),
                     Tokens[Pointer], GetFilename(Tokens[Pointer]));
             }
         }
@@ -287,7 +287,7 @@ namespace Clawsemble
             Word = Word.Trim().ToLower();
 
             foreach (var sig in Instructions) {
-                if (sig.Mnemoric.ToLower() == Word) {
+                if (sig.Mnemonic.ToLower() == Word) {
                     Signature = sig;
                     return true;
                 }
