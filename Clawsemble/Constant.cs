@@ -6,6 +6,9 @@ namespace Clawsemble
     {
         public readonly long Number;
         public readonly string String;
+
+        public readonly long[] Array;
+        public readonly byte[] ByteArray;
         public readonly ConstantType Type;
 
         public Constant()

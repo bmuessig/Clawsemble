@@ -48,10 +48,14 @@
     <Compile Include="CodeError.cs" />
     <Compile Include="CodeErrorType.cs" />
     <Compile Include="ArbitraryStack.cs" />
-    <Compile Include="InstructionSignature.cs" />
     <Compile Include="InstructionArgumentType.cs" />
     <Compile Include="DefaultInstructions.cs" />
     <Compile Include="CompilerBinaryType.cs" />
+    <Compile Include="Symbol.cs" />
+    <Compile Include="Instruction.cs" />
+    <Compile Include="InstructionPayload.cs" />
+    <Compile Include="ModuleSlot.cs" />
+    <Compile Include="ExecutableVersion.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
@@ -59,7 +63,7 @@
       <Properties>
         <Policies>
           <TextStylePolicy FileWidth="120" EolMarker="Unix" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/x-csharp" />
-          <CSharpFormattingPolicy BeforeMethodDeclarationParentheses="False" BeforeMethodCallParentheses="False" BeforeConstructorDeclarationParentheses="False" BeforeIndexerDeclarationBracket="False" BeforeDelegateDeclarationParentheses="False" AfterDelegateDeclarationParameterComma="True" NewParentheses="False" SpacesBeforeBrackets="False" inheritsSet="Mono" inheritsScope="text/x-csharp" scope="text/x-csharp" />
+          <CSharpFormattingPolicy BeforeMethodDeclarationParentheses="False" BeforeMethodCallParentheses="False" BeforeConstructorDeclarationParentheses="False" BeforeIndexerDeclarationBracket="False" BeforeDelegateDeclarationParentheses="False" AfterDelegateDeclarationParameterComma="True" NewParentheses="False" SpacesBeforeBrackets="False" BlankLinesBetweenMembers="0" inheritsSet="Mono" inheritsScope="text/x-csharp" scope="text/x-csharp" />
           <TextStylePolicy inheritsSet="Mono" inheritsScope="text/plain" scope="text/plain" />
           <VersionControlPolicy inheritsSet="Mono" />
           <XmlFormattingPolicy inheritsSet="Mono" inheritsScope="application/xml" scope="application/xml" />

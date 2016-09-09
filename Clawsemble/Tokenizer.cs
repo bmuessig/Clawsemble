@@ -39,8 +39,7 @@ namespace Clawsemble
                             FinishToken(tokens, ref type, ref pos, ref line, sb);
                         type = TokenType.Break;
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    } else
-                        throw new Exception("You shouldn't be here!");
+                    }
                 } else if (chr == ' ' || chr == '\t') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == ';') {

@@ -10,7 +10,7 @@ namespace Clawsemble
         public List<Token> Tokens;
         public List<string> Files;
         public Dictionary<string, Constant> Defines;
-        public InstructionSignature[] ValidInstructions;
+        public Instruction[] ValidInstructions;
 
         public Preprocessor()
         {
@@ -353,7 +353,7 @@ namespace Clawsemble
                         });
                     } // else drop it as we don't want newlines following each other
                 } else if (IsOp(ftokens[ptr])) {
-                    throw new CodeError(CodeErrorType.ExpressionUncontained, "Expressions need to be surrounded by parantheses!",
+                    throw new CodeError(CodeErrorType.UnexpectedOperator, "Expressions need to be surrounded by parantheses!",
                         ftokens[ptr], Filename);
                 } else if (ftokens[ptr].Type != TokenType.Comment && ftokens[ptr].Type != TokenType.CharacterRemove) {
                     // we cannot deal with the token just yet
@@ -683,7 +683,7 @@ namespace Clawsemble
                 return true;
 
             // check collisions with instructions
-            foreach (InstructionSignature instr in ValidInstructions) {
+            foreach (Instruction instr in ValidInstructions) {
                 if (instr.Mnemonic.ToLower() == Key.ToLower())
                     return true;
             }
