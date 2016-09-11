@@ -53,12 +53,10 @@
     <Compile Include="Symbol.cs" />
     <Compile Include="ModuleSlot.cs" />
     <Compile Include="ExecutableVersion.cs" />
-    <Compile Include="NativeInstruction.cs" />
-    <Compile Include="ExtendedInstruction.cs" />
-    <Compile Include="IInstruction.cs" />
     <Compile Include="InstructionSignature.cs" />
     <Compile Include="BinaryType.cs" />
     <Compile Include="DefaultDefinitions.cs" />
+    <Compile Include="Instruction.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

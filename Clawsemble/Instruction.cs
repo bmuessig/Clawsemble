@@ -3,20 +3,11 @@ using System.Collections.Generic;
 
 namespace Clawsemble
 {
-    public class ExtendedInstruction : IInstruction
+    public struct Instruction
     {
-        public ExtendedInstruction()
-        {
-        }
-
-        // IInstruction
         public List<long> Arguments { get; set; }
         public string Label { get; set; }
-
-        public bool Validate()
-        {
-            return true;
-        }
+        public InstructionSignature Signature { get; set; }
 
         public byte[] Compile(BinaryType Flags)
         {
