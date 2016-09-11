@@ -10,21 +10,23 @@ namespace Clawsemble
         Byte = 0x1,
         ShortLabel = Byte | (0x1 << 1),
         Data = Byte | (0x1 << 2),
-        String = Byte | (0x1 << 3),
-        Function = Byte | (0x1 << 4),
+        Values = Byte | (0x1 << 3),
+        String = Byte | (0x1 << 4),
+        Function = Byte | (0x1 << 5),
 
-        Array = Data | String,
+        Array = Data | Values | String,
 
         /* *
           * s16/s32/s64 bit numbers:
-          *  * simple value (0b00000)
-          *  * label offset (0b00010)
+          *  * simple value (0b000000)
+          *  * label offset (0b000010)
           * u8 bit number
-          *  * simple value (0b00001)
-          *  * label offset (0b00011)
-          *  * data         (0b00101)
-          *  * string       (0b01001)
-          *  * function     (0b10001)
+          *  * simple value (0b000001)
+          *  * label offset (0b000011)
+          *  * data         (0b000101)
+          *  * values       (0b001001)
+          *  * string       (0b010001)
+          *  * function     (0b100001)
           * */
     }
 }

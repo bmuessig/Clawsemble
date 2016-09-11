@@ -205,13 +205,15 @@ namespace Clawsemble
                         type = TokenType.Number;
                     }
                     sb.Append(chr);
+                } else if (((chr >= 'A' && chr <= 'F') || (chr >= 'a' && chr <= 'f'))
+                           && type == TokenType.HexadecimalEscape) {
+                    sb.Append(chr);
                 } else if (((chr >= 'A' && chr <= 'Z') || (chr >= 'a' && chr <= 'z') || chr == '_')
                            && type != TokenType.HexadecimalEscape && type != TokenType.Number) {
                     if (type == TokenType.Empty)
                         type = TokenType.Word;
-                    sb.Append(chr);
-                } else if (((chr >= 'A' && chr <= 'F') || (chr >= 'a' && chr <= 'f'))
-                           && type == TokenType.HexadecimalEscape) {
+                    if (type != TokenType.CompilerDirective && type != TokenType.PreprocessorDirective && type != TokenType.Word)
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
                     sb.Append(chr);
                 } else {
                     type = TokenType.Error;
@@ -233,7 +235,7 @@ namespace Clawsemble
             if (Builder.Length > 0) {
                 string content;
 
-                if (Type == TokenType.Empty)
+                if (Type == TokenType.Empty || Type == TokenType.Break)
                     Type = TokenType.Error;
 
                 content = Builder.ToString();

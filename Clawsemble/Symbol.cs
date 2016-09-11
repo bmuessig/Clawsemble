@@ -11,7 +11,7 @@ namespace Clawsemble
         public bool IsIndexFixed;
 
         // Data
-        public List<InstructionPayload> Instructions;
+        public List<NativeInstruction> Instructions;
 
         //.ctor
         public Symbol(string Name)
@@ -19,7 +19,7 @@ namespace Clawsemble
             this.Name = Name;
             this.Index = 0;
             this.IsIndexFixed = false;
-            this.Instructions = new List<InstructionPayload>();
+            this.Instructions = new List<NativeInstruction>();
         }
 
         public Symbol(string Name, byte Index)
@@ -27,7 +27,7 @@ namespace Clawsemble
             this.Name = Name;
             this.Index = Index;
             this.IsIndexFixed = true;
-            this.Instructions = new List<InstructionPayload>();
+            this.Instructions = new List<NativeInstruction>();
         }
     }
 }

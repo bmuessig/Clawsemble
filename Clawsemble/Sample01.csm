@@ -1,27 +1,8 @@
-﻿
-#define test 1
-
-#ifdef test
-
-#ifndef test
-#err "Can't be here!"
-#else
-;#err "If was successfully triggered (defined)!"
-#undef test
-#endif
-
-#else
-
-#err "If was successfully triggered (notdefined)!"
-
-#endif
+﻿.CWX:16
+.exi helloworld,129,ARGTYPE_STRING,ARGTYPE_ARRAY
 
 
-#ifndef test
-;#err "well it seems this works too :)"
-#endif
-
-.CWX:16				; required, MUST be first directive in every file,
+																; required, MUST be first directive in every file,
 				; CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
 

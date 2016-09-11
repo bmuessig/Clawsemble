@@ -10,24 +10,24 @@ namespace Clawsemble
         public List<Token> Tokens;
         public List<string> Files;
         public Dictionary<string, Constant> Defines;
-        public Instruction[] ValidInstructions;
+        public Dictionary<string, Constant> PreDefines;
+        public InstructionSignature[] ValidInstructions;
 
         public Preprocessor()
         {
             Tokens = new List<Token>();
             Files = new List<string>();
-            ValidInstructions = DefaultInstructions.CompileList();
             Defines = new Dictionary<string, Constant>();
-            Defines.Add("NULL", new Constant(0));
+            PreDefines = new Dictionary<string, Constant>();
+            AddPreDefinesRange(DefaultDefinitions.CompileList());
+            ValidInstructions = DefaultInstructions.CompileList();
         }
 
         public void Clear()
         {
             Tokens.Clear();
             Files.Clear();
-            ValidInstructions = DefaultInstructions.CompileList();
             Defines.Clear();
-            Defines.Add("NULL", new Constant(0));
         }
 
         public void DoFile(string Filename)
@@ -122,7 +122,7 @@ namespace Clawsemble
                         
                         if (ftokens[++ptr].Type == TokenType.Word) {
                             if (!string.IsNullOrEmpty(ftokens[ptr].Content)) {
-                                if (Defines.ContainsKey(ftokens[ptr].Content.Trim())) { // the key exists
+                                if (DefineExists(ftokens[ptr].Content.Trim())) { // the key exists
                                     if (directive == "ifdef") { // key exists AND we have an ifdef = success
                                         ifStack.Push(true); // add that if is solved
                                     } else if (directive == "ifndef") { // key exists AND we have an ifndef = no success
@@ -309,11 +309,11 @@ namespace Clawsemble
                     }
                     if (eval.Type == ConstantType.Numeric) {
                         Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                            Line = (uint)origi, File = (uint)Files.Count
+                            HasConstant = true, Constant = eval, Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else if (eval.Type == ConstantType.String) {
                         Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
-                            Line = (uint)origi, File = (uint)Files.Count
+                            HasConstant = true, Constant = eval, Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else
                         throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
@@ -327,23 +327,23 @@ namespace Clawsemble
                     }
 
                     Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                        Line = ftokens[ptr].Line, File = (uint)Files.Count
+                        HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
                     });
                 } else if (ftokens[ptr].Type == TokenType.Word) {
-                    if (Defines.ContainsKey(ftokens[ptr].Content)) {
-                        Constant eval = Defines[ftokens[ptr].Content];
+                    if (DefineExists(ftokens[ptr].Content)) {
+                        Constant eval = GetDefine(ftokens[ptr].Content);
 
                         if (eval.Type == ConstantType.Numeric) {
                             Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                                Line = ftokens[ptr].Line, File = (uint)Files.Count
+                                HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                         } else if (eval.Type == ConstantType.String)
                             Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
-                                Line = ftokens[ptr].Line, File = (uint)Files.Count
+                                HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                     } else { // if the word is not resolvable, add it again
                         Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
-                            Line = ftokens[ptr].Line, File = (uint)Files.Count
+                            HasConstant = false, Line = ftokens[ptr].Line, File = (uint)Files.Count
                         });
                     }
                 } else if (ftokens[ptr].Type == TokenType.Break && Tokens.Count > 0) {
@@ -435,8 +435,8 @@ namespace Clawsemble
                     }
                     valstack.Push(con);
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
-                    if (Defines.ContainsKey(Tokens[Pointer].Content.Trim())) {
-                        Constant cvar = Defines[Tokens[Pointer].Content.Trim()];
+                    if (DefineExists(Tokens[Pointer].Content.Trim())) {
+                        Constant cvar = GetDefine(Tokens[Pointer].Content.Trim());
                         if (cvar.Type != ConstantType.Empty)
                             valstack.Push(cvar);
                         else
@@ -679,16 +679,38 @@ namespace Clawsemble
         private bool IsNameReserved(string Key)
         {
             // check reserved words
-            if (Key == "NULL")
-                return true;
+            foreach (string key in PreDefines.Keys) {
+                if (key == Key)
+                    return true;
+            }
 
             // check collisions with instructions
-            foreach (Instruction instr in ValidInstructions) {
+            foreach (InstructionSignature instr in ValidInstructions) {
                 if (instr.Mnemonic.ToLower() == Key.ToLower())
                     return true;
             }
 
             return false;
+        }
+
+        private void AddPreDefinesRange(Dictionary<string, Constant> Values)
+        {
+            foreach (KeyValuePair<string, Constant> kvp in Values)
+                PreDefines.Add(kvp.Key, kvp.Value);
+        }
+
+        private bool DefineExists(string Key)
+        {
+            return (bool)(Defines.ContainsKey(Key) || PreDefines.ContainsKey(Key));
+        }
+
+        private Constant GetDefine(string Key)
+        {
+            if (PreDefines.ContainsKey(Key))
+                return PreDefines[Key];
+            if (Defines.ContainsKey(Key))
+                return Defines[Key];
+            throw new ArgumentException("Define does not exist!", "Key");
         }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Clawsemble
 {
-    public enum CompilerBinaryType
+    public enum BinaryType
     {
         Executable = 0x0,
         Library = 0x1,
