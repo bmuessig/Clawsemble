@@ -5,7 +5,8 @@ namespace Clawsemble
     public enum TokenType
     {
         Empty,
-        Error,
+        Invalid,
+        Unexpected,
         Comment,
         PreprocessorDirective,
         Not,

@@ -72,12 +72,12 @@ namespace Clawsemble
                     if (type == TokenType.Empty)
                         type = TokenType.CompilerDirective;
                     else
-                        type = TokenType.Error;
+                        type = TokenType.Invalid;
                 } else if (chr == '#') {
                     if (type == TokenType.Empty)
                         type = TokenType.PreprocessorDirective;
                     else {
-                        type = TokenType.Error;
+                        type = TokenType.Invalid;
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     }
                 } else if (chr == '$') {
@@ -85,7 +85,7 @@ namespace Clawsemble
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                         type = TokenType.HexadecimalEscape;
                     } else {
-                        type = TokenType.Error;
+                        type = TokenType.Invalid;
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     }
                 } else if (chr == ':' || chr == ',') {
@@ -102,7 +102,7 @@ namespace Clawsemble
                 } else if (chr == '{') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     if (multiline) {
-                        type = TokenType.Error;
+                        type = TokenType.Unexpected;
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else
@@ -110,7 +110,7 @@ namespace Clawsemble
                 } else if (chr == '}') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     if (!multiline) {
-                        type = TokenType.Error;
+                        type = TokenType.Unexpected;
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else
@@ -230,7 +230,7 @@ namespace Clawsemble
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     sb.Append(chr);
                 } else {
-                    type = TokenType.Error;
+                    type = TokenType.Invalid;
                     sb.Append(chr);
                 }
             }
@@ -250,7 +250,7 @@ namespace Clawsemble
                 string content;
 
                 if (Type == TokenType.Empty || Type == TokenType.Break)
-                    Type = TokenType.Error;
+                    Type = TokenType.Invalid;
 
                 content = Builder.ToString();
                 Builder.Clear();

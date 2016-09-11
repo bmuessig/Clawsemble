@@ -1,7 +1,9 @@
 ﻿.CWX:16
-.exi helloworld,143, { 
-ARGTYPE_STRING,
-ARGTYPE_ARRAY
+
+; Custom instruction
+.exi helloworld, 143, { {
+	ARGTYPE_STRING,
+	ARGTYPE_ARRAY
 }
 
 																; required, MUST be first directive in every file,

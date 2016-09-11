@@ -6,6 +6,7 @@ namespace Clawsemble
     {
         UnknownError,
         UnknownDirective,
+        TokenError,
         IntentionalError,
         DivisionByZero,
         ExpectedWord,

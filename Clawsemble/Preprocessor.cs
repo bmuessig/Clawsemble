@@ -355,6 +355,8 @@ namespace Clawsemble
                 } else if (IsOp(ftokens[ptr])) {
                     throw new CodeError(CodeErrorType.UnexpectedOperator, "Expressions need to be surrounded by parantheses!",
                         ftokens[ptr], Filename);
+                } else if (ftokens[ptr].Type == TokenType.Invalid || ftokens[ptr].Type == TokenType.Unexpected) { // catch the errors
+                    throw new CodeError(CodeErrorType.TokenError, ftokens[ptr], Filename);
                 } else if (ftokens[ptr].Type != TokenType.Comment && ftokens[ptr].Type != TokenType.CharacterRemove) {
                     // we cannot deal with the token just yet
                     Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
