@@ -1,6 +1,8 @@
 ﻿.CWX:16
-.exi helloworld,129,ARGTYPE_STRING,ARGTYPE_ARRAY
-
+.exi helloworld,143, { 
+ARGTYPE_STRING,
+ARGTYPE_ARRAY
+}
 
 																; required, MUST be first directive in every file,
 				; CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
@@ -36,9 +38,9 @@
 ; yes, preprocessor allows adding strings together :)
 
 				; this metadata is required and has to be present
-.VERSION		0,2		; version expects an array of major and minor version
+.VERSION		0,2		; version expects an array of major and minor version, revision is optional
 
-;.db testvar	$2d			; this defines a new constant testvar as $2d
+;.dat testvar	$2d			; this defines a new constant testvar as $2d
 
 .sym main				; main function, required
 	lc  		42			; load the constant 42 onto the stack

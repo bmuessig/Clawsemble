@@ -13,18 +13,18 @@ namespace Clawsemble
         public InstructionArgumentType[] Arguments { get; private set; }
 
         // Not extended .ctor
-        public InstructionSignature(string Mnemoric, byte Code, params InstructionArgumentType[] Arguments)
+        public InstructionSignature(string Mnemonic, byte Code, params InstructionArgumentType[] Arguments)
         {
-            this.Mnemonic = Mnemoric;
+            this.Mnemonic = Mnemonic;
             this.Code = Code;
             this.IsExtended = false;
             this.Arguments = Arguments;
         }
 
         // Custom .ctor
-        public InstructionSignature(string Mnemoric, byte Code, bool IsExtended, params InstructionArgumentType[] Arguments)
+        public InstructionSignature(string Mnemonic, byte Code, bool IsExtended, params InstructionArgumentType[] Arguments)
         {
-            this.Mnemonic = Mnemoric;
+            this.Mnemonic = Mnemonic;
             this.Code = Code;
             this.IsExtended = IsExtended;
             this.Arguments = Arguments;

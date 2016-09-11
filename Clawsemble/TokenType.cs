@@ -39,8 +39,6 @@ namespace Clawsemble
         Word,
         Number,
         Seperator,
-        ArrayOpen,
-        ArrayClose,
         Break
     }
 }

@@ -16,6 +16,7 @@ namespace Clawsemble
             var sb = new StringBuilder();
             var type = TokenType.Empty;
             uint line = 1, pos = 1;
+            bool multiline = false;
 
             while (!reader.EndOfStream) {
                 char chr = (char)reader.Read();
@@ -29,6 +30,11 @@ namespace Clawsemble
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == '\n' || chr == '\r') {
                     if (type == TokenType.CharacterRemove || type == TokenType.Character) {
+                        sb.Append(chr);
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    } else if (multiline) {
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        type = TokenType.Comment;
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else if (chr == '\r') {
@@ -95,12 +101,20 @@ namespace Clawsemble
                     type = TokenType.Not;
                 } else if (chr == '{') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.ArrayOpen;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    if (multiline) {
+                        type = TokenType.Error;
+                        sb.Append(chr);
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    } else
+                        multiline = true;
                 } else if (chr == '}') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.ArrayClose;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    if (!multiline) {
+                        type = TokenType.Error;
+                        sb.Append(chr);
+                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    } else
+                        multiline = false;
                 } else if (chr == '(') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.ParanthesisOpen;

@@ -43,7 +43,6 @@
     <Compile Include="Preprocessor.cs" />
     <Compile Include="Constant.cs" />
     <Compile Include="ConstantType.cs" />
-    <Compile Include="ExecutableHeader.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="CodeError.cs" />
     <Compile Include="CodeErrorType.cs" />
@@ -52,11 +51,12 @@
     <Compile Include="DefaultInstructions.cs" />
     <Compile Include="Symbol.cs" />
     <Compile Include="ModuleSlot.cs" />
-    <Compile Include="ExecutableVersion.cs" />
     <Compile Include="InstructionSignature.cs" />
     <Compile Include="BinaryType.cs" />
     <Compile Include="DefaultDefinitions.cs" />
     <Compile Include="Instruction.cs" />
+    <Compile Include="Version.cs" />
+    <Compile Include="MetaHeader.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

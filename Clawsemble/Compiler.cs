@@ -24,7 +24,7 @@ namespace Clawsemble
         public List<Symbol> Symbols { get; private set; }
         public List<byte[]> Constants { get; private set; }
         public Dictionary<byte, ModuleSlot> Slots { get; private set; }
-        public ExecutableHeader Header { get; private set; }
+        public MetaHeader Header { get; private set; }
 
         // Compile autofills the following variables
         public List<byte> Binary { get; private set; }
@@ -43,7 +43,7 @@ namespace Clawsemble
             this.Symbols = new List<Symbol>();
             this.Constants = new List<byte[]>();
             this.Slots = new Dictionary<byte, ModuleSlot>();
-            this.Header = new ExecutableHeader();
+            this.Header = new MetaHeader();
             this.BinaryType = 0;
             this.Pointer = 0;
         }
@@ -56,7 +56,7 @@ namespace Clawsemble
             this.Constants = new List<byte[]>();
             this.Symbols = new List<Symbol>();
             this.Slots = new Dictionary<byte, ModuleSlot>();
-            this.Header = new ExecutableHeader();
+            this.Header = new MetaHeader();
             this.BinaryType = 0;
             this.Pointer = 0;
             Instructions = new List<InstructionSignature>();
@@ -124,7 +124,7 @@ namespace Clawsemble
                     } else
                         throw new CodeError(CodeErrorType.ConstantRange, "Only 16, 32 and 64 bits are supported!",
                             Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    Pointer++;
+                    EndOfHeaderPointer = ++Pointer;
                     break;
                 } else if (Tokens[Pointer].Type != TokenType.Break)
                     throw new CodeError(CodeErrorType.ExpectedHeader, "Expected initial header!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
@@ -135,7 +135,7 @@ namespace Clawsemble
         {
             Symbol sym = new Symbol();
 
-            // Find and add all the .lbl, .sym, .db and .mod to the database
+            // Find and add all the .lbl, .sym, .dat, .val, .exi and .mod to the database
             for (; Pointer < Tokens.Count; Pointer++) {
                 if (Tokens[Pointer].Type == TokenType.CompilerDirective) {
                     if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
@@ -198,10 +198,17 @@ namespace Clawsemble
                             if (Tokens[++Pointer].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                         }
-                    } else if (directive == "dt" || directive == "data" ||
+                    } else if (directive == "dat" || directive == "data" ||
                                directive == "str" || directive == "string" ||
-                               directive == "vl" || directive == "values") {
-
+                               directive == "val" || directive == "values") {
+                        // e.g.:  .dat test 123,123,123,1232,23
+                        if (!IsBeforeEOF(Pointer, Tokens.Count, 3))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF,
+                                Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1].File));
+                        if (Tokens[++Pointer].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        
                     } else if (directive == "mod" || directive == "module" || directive == "omod" || directive == "optmodule") {
                         if (!IsBeforeEOF(Pointer, Tokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
@@ -266,12 +273,6 @@ namespace Clawsemble
                         if (code <= MaxNativeInstrs)
                             throw new CodeError(CodeErrorType.ArgumentRange,
                                 string.Format("Custom instruction code outside of extended instruction range ({0}-255)!", MaxNativeInstrs + 1),
-                                Tokens[Pointer],
-                                GetFilename(Tokens[Pointer].File));
-                        InstructionSignature collSig;
-                        if (FindSignature(code, out collSig))
-                            throw new CodeError(CodeErrorType.ArgumentInvalid,
-                                string.Format("Instruction with code {0} already defined as '{1}'!", code, collSig.Mnemonic),
                                 Tokens[Pointer],
                                 GetFilename(Tokens[Pointer].File));
                         var args = new List<InstructionArgumentType>();
