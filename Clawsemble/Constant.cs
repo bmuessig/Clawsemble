@@ -68,7 +68,7 @@ namespace Clawsemble
                 } catch (Exception) {
                     throw new Exception("Invalid number!");
                 }
-            } else if (Type == TokenType.HexadecimalEscape) {
+            } else if (Type == TokenType.Hexadecimal) {
                 if (Content.Length > 0 && Content.Length <= 8) {
                     try {
                         Number = Convert.ToInt64(Content, 16);

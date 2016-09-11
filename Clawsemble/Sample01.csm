@@ -1,7 +1,7 @@
 ﻿.CWX:16
 
 ; Custom instruction
-.exi helloworld, 143, { {
+.exi helloworld, 143, {
 	ARGTYPE_STRING,
 	ARGTYPE_ARRAY
 }

@@ -23,13 +23,10 @@ namespace Clawsemble
 
                 if ((type == TokenType.Comment && chr != '\r' && chr != '\n') ||
                     (type == TokenType.String && chr != '"' && chr != '\r' && chr != '\n') ||
-                    (type == TokenType.Character && chr != '\'' && chr != '\r' && chr != '\n' && sb.Length < 3) ||
-                    (type == TokenType.CharacterRemove && sb.Length < 1)) {
+                    (type == TokenType.Character && chr != '\'' && chr != '\r' && chr != '\n' && sb.Length < 3)) {
                     sb.Append(chr);
-                    if (type == TokenType.CharacterRemove)
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
                 } else if (chr == '\n' || chr == '\r') {
-                    if (type == TokenType.CharacterRemove || type == TokenType.Character) {
+                    if (type == TokenType.Character) {
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else if (multiline) {
@@ -51,9 +48,6 @@ namespace Clawsemble
                 } else if (chr == ';') {
                     FinishToken(tokens, ref type, ref pos, ref line, sb);
                     type = TokenType.Comment;
-                } else if (chr == '\\') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
-                    type = TokenType.CharacterRemove;
                 } else if (chr == '"') {
                     if (type == TokenType.String) {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
@@ -81,9 +75,9 @@ namespace Clawsemble
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     }
                 } else if (chr == '$') {
-                    if (type != TokenType.HexadecimalEscape) {
+                    if (type != TokenType.Hexadecimal) {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
-                        type = TokenType.HexadecimalEscape;
+                        type = TokenType.Hexadecimal;
                     } else {
                         type = TokenType.Invalid;
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
@@ -214,16 +208,16 @@ namespace Clawsemble
                         if (type == TokenType.Minus)
                             sb.Append('-');
                         type = TokenType.Number;
-                    } else if (type != TokenType.Number && type != TokenType.Word && type != TokenType.HexadecimalEscape) {
+                    } else if (type != TokenType.Number && type != TokenType.Word && type != TokenType.Hexadecimal) {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                         type = TokenType.Number;
                     }
                     sb.Append(chr);
                 } else if (((chr >= 'A' && chr <= 'F') || (chr >= 'a' && chr <= 'f'))
-                           && type == TokenType.HexadecimalEscape) {
+                           && type == TokenType.Hexadecimal) {
                     sb.Append(chr);
                 } else if (((chr >= 'A' && chr <= 'Z') || (chr >= 'a' && chr <= 'z') || chr == '_')
-                           && type != TokenType.HexadecimalEscape && type != TokenType.Number) {
+                           && type != TokenType.Hexadecimal && type != TokenType.Number) {
                     if (type == TokenType.Empty)
                         type = TokenType.Word;
                     if (type != TokenType.CompilerDirective && type != TokenType.PreprocessorDirective && type != TokenType.Word)

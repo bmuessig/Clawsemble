@@ -202,8 +202,7 @@ namespace Clawsemble
                                 ptr++;
                                 throw new CodeError(CodeErrorType.IntentionalError, ftokens[ptr].Content, ftokens[ptr].Line, Filename);
                             } else if (ftokens[ptr + 1].Type == TokenType.Number || ftokens[ptr + 1].Type == TokenType.Character ||
-                                       ftokens[ptr + 1].Type == TokenType.CharacterRemove || ftokens[ptr + 1].Type == TokenType.HexadecimalEscape ||
-                                       ftokens[ptr + 1].Type == TokenType.Word) {
+                                       ftokens[ptr + 1].Type == TokenType.Hexadecimal || ftokens[ptr + 1].Type == TokenType.Word) {
                                 Constant eval;
                                 ptr++;
                                 try {
@@ -251,7 +250,7 @@ namespace Clawsemble
                             key = ftokens[ptr].Content.Trim();
 
                             if (ftokens[ptr + 1].Type == TokenType.String ||
-                                ftokens[ptr + 1].Type == TokenType.HexadecimalEscape ||
+                                ftokens[ptr + 1].Type == TokenType.Hexadecimal ||
                                 ftokens[ptr + 1].Type == TokenType.Character ||
                                 ftokens[ptr + 1].Type == TokenType.Number ||
                                 ftokens[ptr + 1].Type == TokenType.Word) {
@@ -318,7 +317,7 @@ namespace Clawsemble
                     } else
                         throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
                 } else if (ftokens[ptr].Type == TokenType.Number || ftokens[ptr].Type == TokenType.Character ||
-                           ftokens[ptr].Type == TokenType.HexadecimalEscape) {
+                           ftokens[ptr].Type == TokenType.Hexadecimal) {
                     Constant eval;
                     try {
                         eval = new Constant(ftokens[ptr]);
@@ -357,7 +356,7 @@ namespace Clawsemble
                         ftokens[ptr], Filename);
                 } else if (ftokens[ptr].Type == TokenType.Invalid || ftokens[ptr].Type == TokenType.Unexpected) { // catch the errors
                     throw new CodeError(CodeErrorType.TokenError, ftokens[ptr], Filename);
-                } else if (ftokens[ptr].Type != TokenType.Comment && ftokens[ptr].Type != TokenType.CharacterRemove) {
+                } else if (ftokens[ptr].Type != TokenType.Comment) {
                     // we cannot deal with the token just yet
                     Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
                         Line = ftokens[ptr].Line, File = (uint)Files.Count
@@ -427,7 +426,7 @@ namespace Clawsemble
                     break;
                 } else if (Tokens[Pointer].Type == TokenType.Number ||
                            Tokens[Pointer].Type == TokenType.Character ||
-                           Tokens[Pointer].Type == TokenType.HexadecimalEscape ||
+                           Tokens[Pointer].Type == TokenType.Hexadecimal ||
                            Tokens[Pointer].Type == TokenType.String) {
                     Constant con;
                     try {
