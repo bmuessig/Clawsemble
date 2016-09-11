@@ -15,7 +15,7 @@
 
 ; (0/0)
 
-$12345678
+;$12345678
 
 ; this shouldnt work as it's reserved
 ;#define lc 123

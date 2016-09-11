@@ -43,6 +43,7 @@ namespace Clawsemble
             this.Symbols = new List<Symbol>();
             this.Constants = new List<byte[]>();
             this.Slots = new Dictionary<byte, ModuleSlot>();
+            this.Header = new ExecutableHeader();
             this.BinaryType = 0;
             this.Pointer = 0;
         }
@@ -55,6 +56,7 @@ namespace Clawsemble
             this.Constants = new List<byte[]>();
             this.Symbols = new List<Symbol>();
             this.Slots = new Dictionary<byte, ModuleSlot>();
+            this.Header = new ExecutableHeader();
             this.BinaryType = 0;
             this.Pointer = 0;
             Instructions = new List<InstructionSignature>();
@@ -238,91 +240,135 @@ namespace Clawsemble
                                 throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                         }
                     } else if (directive == "exi" || directive == "extinstr") {
-                        if (IsBeforeEOF(Pointer, Tokens.Count, 3)) {
-                            if (Tokens[++Pointer].Type != TokenType.Word)
-                                throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                                throw new CodeError(CodeErrorType.WordInvalid, "Instruction name can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            string mnemonic = Tokens[Pointer].Content.Trim().ToLower();
-                            if (FindSignature(mnemonic)) // is the instruction already defined
+                        if (!IsBeforeEOF(Pointer, Tokens.Count, 3))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, Tokens[Tokens.Count - 1], GetFilename(Tokens[Tokens.Count - 1].File));
+                        if (Tokens[++Pointer].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
+                            throw new CodeError(CodeErrorType.WordInvalid, "Instruction name can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        string mnemonic = Tokens[Pointer].Content.Trim().ToLower();
+                        if (FindSignature(mnemonic)) // is the instruction already defined
                                 throw new CodeError(CodeErrorType.OperationInvalid,
-                                    string.Format("Instruction {0} already defined!", mnemonic),
+                                string.Format("Instruction {0} already defined!", mnemonic),
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+                        // check for seperator (not that it is really ever needed but it looks nice)
+                        if (Tokens[++Pointer].Type != TokenType.Seperator)
+                            throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        // check for the id
+                        if (Tokens[++Pointer].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        byte code;
+                        if (!byte.TryParse(Tokens[Pointer].Content, out code))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid custom instruction code!",
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+                        if (code <= MaxNativeInstrs)
+                            throw new CodeError(CodeErrorType.ArgumentRange,
+                                string.Format("Custom instruction code outside of extended instruction range ({0}-255)!", MaxNativeInstrs + 1),
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+                        InstructionSignature collSig;
+                        if (FindSignature(code, out collSig))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                string.Format("Instruction with code {0} already defined as '{1}'!", code, collSig.Mnemonic),
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+                        var args = new List<InstructionArgumentType>();
+                        // Now go for args until eof or break
+                        while (IsBeforeEOF(Pointer, Tokens.Count, 2)) { // 2 because seperator, then another signature
+                            if (Tokens[Pointer + 1].Type != TokenType.Seperator)
+                                break; // only continue while there are seperators
+                            if (Tokens[Pointer + 2].Type != TokenType.String)
+                                break;
+                            Pointer += 2; // now we know the args match, so advance the pointer
+                            if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
+                                throw new CodeError(CodeErrorType.WordInvalid, "Custom instruction signature argument type can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                            InstructionArgumentType type;
+                            if (!Enum.TryParse(Tokens[Pointer].Content.Trim(), true, out type))
+                                throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid custom instruction signature argument!",
                                     Tokens[Pointer],
                                     GetFilename(Tokens[Pointer].File));
-                            // check for seperator (not that it is really ever needed but it looks nice)
-                            if (Tokens[++Pointer].Type != TokenType.Seperator)
-                                throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            // check for the id
-                            if (Tokens[++Pointer].Type != TokenType.Number)
-                                throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            byte code;
-                            if (!byte.TryParse(Tokens[Pointer].Content, out code))
-                                throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid custom instruction code!",
-                                    Tokens[Pointer],
-                                    GetFilename(Tokens[Pointer].File));
-                            InstructionSignature collSig;
-                            if (FindSignature(code, out collSig))
-                                throw new CodeError(CodeErrorType.ArgumentInvalid,
-                                    string.Format("Instruction with code {0} already defined as '{1}'!", code, collSig.Mnemonic),
-                                    Tokens[Pointer],
-                                    GetFilename(Tokens[Pointer].File));
-                            var args = new List<InstructionArgumentType>();
-                            // Now go for args until eof or break
-                            while (IsBeforeEOF(Pointer, Tokens.Count, 2)) { // 2 because seperator, then another signature
-                                if (Tokens[Pointer + 1].Type != TokenType.Seperator)
-                                    break; // only continue while there are seperators
-                                if (Tokens[Pointer + 2].Type != TokenType.String)
-                                    break;
-                                Pointer += 2; // now we know the args match, so advance the pointer
-                                if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                                    throw new CodeError(CodeErrorType.WordInvalid, "Custom instruction signature argument type can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                                InstructionArgumentType type;
-                                if (!Enum.TryParse(Tokens[Pointer].Content.Trim(), true, out type))
-                                    throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid custom instruction signature argument!",
+                            args.Add(type);
+                        }
+
+                        Instructions.Add(new InstructionSignature(mnemonic, code, true, args.ToArray()));
+
+                        // check for break
+                        if (IsBeforeEOF(Pointer, Tokens.Count)) {
+                            if (Tokens[++Pointer].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        }
+                    } else if (directive == "title" || directive == "author" ||
+                               directive == "copyr" || directive == "copyright" ||
+                               directive == "descr" || directive == "description") {
+                        if (!IsBeforeEOF(Pointer, Tokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1].File));
+                        if (Tokens[++Pointer].Type != TokenType.String)
+                            throw new CodeError(CodeErrorType.ExpectedString, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+
+                        string content = (string.IsNullOrWhiteSpace(Tokens[Pointer].Content) ? "" : Tokens[Pointer].Content);
+
+                        if (directive == "title") {
+                            Header.Title = content.Trim();
+                        } else if (directive == "author") {
+                            Header.Author = content.Trim();
+                        } else if (directive == "copyr" || directive == "copyright") {
+                            Header.Copyright = content;
+                        } else if (directive == "descr" || directive == "description") {
+                            Header.Description = content;
+                        }
+                    } else if (directive == "ver" || directive == "version") {
+                        if (!IsBeforeEOF(Pointer, Tokens.Count, 3))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1].File));
+                        if (Tokens[++Pointer].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        byte major;
+                        if (!byte.TryParse(Tokens[Pointer].Content, out major))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid major version number!",
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+
+                        if (Tokens[++Pointer].Type != TokenType.Seperator)
+                            throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        
+                        byte minor;
+                        if (Tokens[++Pointer].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        if (!byte.TryParse(Tokens[Pointer].Content, out minor))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid minor version number!",
+                                Tokens[Pointer],
+                                GetFilename(Tokens[Pointer].File));
+                        
+                        byte revision = 0;
+                        // check for optional revision
+                        if (!IsBeforeEOF(Pointer, Tokens.Count, 2)) {
+                            if (Tokens[Pointer + 1].Type == TokenType.Seperator) {
+                                Pointer++;
+                                if (Tokens[++Pointer].Type != TokenType.Number)
+                                    throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                                if (!byte.TryParse(Tokens[Pointer].Content, out revision))
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid revision version number!",
                                         Tokens[Pointer],
                                         GetFilename(Tokens[Pointer].File));
-                                args.Add(type);
                             }
+                        }
 
-                            Instructions.Add(new InstructionSignature(mnemonic, code, true, args.ToArray()));
+                        // write the data
+                        Header.Version.Major = major;
+                        Header.Version.Minor = minor;
+                        Header.Version.Revision = revision;
 
-                            // check for break
-                            if (IsBeforeEOF(Pointer, Tokens.Count)) {
-                                if (Tokens[++Pointer].Type != TokenType.Break)
-                                    throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            }
-                        } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, Tokens[Tokens.Count - 1], GetFilename(Tokens[Pointer].File));
-                    } else if (directive == "title") {
-                        
-                    } else if (directive == "author") {
-
-                    } else if (directive == "copy" || directive == "copyright") {
-
-                    } else if (directive == "descr" || directive == "description") {
-                        
-                    } else if (directive == "ver" || directive == "version") {
-                        
+                        // check for break
+                        if (IsBeforeEOF(Pointer, Tokens.Count)) {
+                            if (Tokens[++Pointer].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        }
                     }
-                } else if (Tokens[Pointer].Type == TokenType.Word || Tokens[Pointer].Type == TokenType.Number) {
-                    InstructionSignature instr;
-
-                    if (Tokens[Pointer].Type == TokenType.Word) {
-                        if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                            throw new CodeError(CodeErrorType.WordInvalid, "Empty word!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    
-                        if (FindSignature(Tokens[Pointer].Content, out instr)) {
-
-                            while (IsBeforeEOF(Pointer, Tokens.Count)) {
-                                break; // DEBUG
-                            }
-                        } else
-                            throw new CodeError(CodeErrorType.WordUnknown, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    } else {
-                        // find out custom instruction
-                    }
-                } else {
-                    
+                } else if (Tokens[Pointer].Type != TokenType.Break) {
+                    throw new CodeError(CodeErrorType.UnexpectedToken, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                 }
             }
         }

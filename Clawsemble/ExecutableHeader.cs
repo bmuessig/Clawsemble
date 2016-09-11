@@ -2,11 +2,11 @@
 
 namespace Clawsemble
 {
-    public struct ExecutableHeader
+    public class ExecutableHeader
     {
         public string Title;
         public string Description;
-        public string Autor;
+        public string Author;
         public string Copyright;
         public ExecutableVersion Version;
     }
