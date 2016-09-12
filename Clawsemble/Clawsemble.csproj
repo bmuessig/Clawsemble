@@ -43,7 +43,6 @@
     <Compile Include="Preprocessor.cs" />
     <Compile Include="Constant.cs" />
     <Compile Include="ConstantType.cs" />
-    <Compile Include="Compiler.cs" />
     <Compile Include="CodeError.cs" />
     <Compile Include="CodeErrorType.cs" />
     <Compile Include="ArbitraryStack.cs" />
@@ -57,8 +56,9 @@
     <Compile Include="Instruction.cs" />
     <Compile Include="Version.cs" />
     <Compile Include="MetaHeader.cs" />
-    <Compile Include="CompilationToken.cs" />
-    <Compile Include="CompilationTokenType.cs" />
+    <Compile Include="CompilerToken.cs" />
+    <Compile Include="CompilerTokenType.cs" />
+    <Compile Include="Precompiler.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

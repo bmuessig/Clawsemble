@@ -5,46 +5,26 @@ namespace Clawsemble
     public class Constant
     {
         public readonly long Number;
-        /*public readonly byte Byte;
-        public readonly bool ValidByte;*/
         public readonly string String;
-
-        public readonly long[] Array;
-        public readonly byte[] ByteArray;
         public readonly ConstantType Type;
 
         public Constant()
         {
             Type = ConstantType.Empty;
-            //ValidByte = false;
         }
 
         public Constant(string String)
         {
             this.String = String;
             Type = ConstantType.String;
-            //ValidByte = false;
         }
 
         public Constant(long Number)
         {
             this.Number = Number;
             Type = ConstantType.Numeric;
-            /*if (Number >= byte.MinValue && Number <= byte.MaxValue) {
-                Byte = (byte)Number;
-                ValidByte = true;
-            } else
-                ValidByte = false;*/
         }
-        /*
-        public Constant(byte Number)
-        {
-            this.Number = Number;
-            this.Byte = Number;
-            Type = ConstantType.Numeric;
-            ValidByte = true;
-        }
-*/
+
         public Constant(Token Token)
             : this(Token.Type, Token.Content)
         {
@@ -55,16 +35,10 @@ namespace Clawsemble
             if (Type == TokenType.String) {
                 String = Content;
                 this.Type = ConstantType.String;
-                //              ValidByte = false;
             } else if (Type == TokenType.Number) {
                 try {
                     Number = Convert.ToInt64(Content);
                     this.Type = ConstantType.Numeric;
-                    /*                if (Number >= byte.MinValue && Number <= byte.MaxValue) {
-                        Byte = (byte)Number;
-                        ValidByte = true;
-                    } else
-                        ValidByte = false;*/
                 } catch (Exception) {
                     throw new Exception("Invalid number!");
                 }
@@ -73,11 +47,6 @@ namespace Clawsemble
                     try {
                         Number = Convert.ToInt64(Content, 16);
                         this.Type = ConstantType.Numeric;
-                        /*   if (Number >= byte.MinValue && Number <= byte.MaxValue) {
-                            Byte = (byte)Number;
-                            ValidByte = true;
-                        } else
-                            ValidByte = false;*/
                     } catch (Exception) {
                         throw new Exception("Invalid hexadecimal number!");
                     }
@@ -87,13 +56,10 @@ namespace Clawsemble
                 if (Content.Length == 1) {
                     Number = (char)Content[0];
                     this.Type = ConstantType.Numeric;
-                    //                   Byte = (byte)Number;
-                    //ValidByte = true;
                 } else
                     throw new Exception("Invalid character size!");
             } else if (Type == TokenType.Empty) {
                 this.Type = ConstantType.Empty;
-                //ValidByte = false;
             } else
                 throw new Exception("Invalid token!");
         }

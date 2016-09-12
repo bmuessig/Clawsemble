@@ -308,11 +308,11 @@ namespace Clawsemble
                     }
                     if (eval.Type == ConstantType.Numeric) {
                         Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                            HasConstant = true, Constant = eval, Line = (uint)origi, File = (uint)Files.Count
+                            Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else if (eval.Type == ConstantType.String) {
                         Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
-                            HasConstant = true, Constant = eval, Line = (uint)origi, File = (uint)Files.Count
+                            Line = (uint)origi, File = (uint)Files.Count
                         });
                     } else
                         throw new CodeError(CodeErrorType.ExpressionEmpty, ftokens[ptr].Line, Filename);
@@ -326,7 +326,7 @@ namespace Clawsemble
                     }
 
                     Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                        HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
+                        Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                     });
                 } else if (ftokens[ptr].Type == TokenType.Word) {
                     if (DefineExists(ftokens[ptr].Content)) {
@@ -334,21 +334,21 @@ namespace Clawsemble
 
                         if (eval.Type == ConstantType.Numeric) {
                             Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
-                                HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
+                                Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                         } else if (eval.Type == ConstantType.String)
                             Tokens.Add(new Token() { Type = TokenType.String, Content = eval.String,
-                                HasConstant = true, Constant = eval, Line = ftokens[ptr].Line, File = (uint)Files.Count
+                                Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                             });
                     } else { // if the word is not resolvable, add it again
                         Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
-                            HasConstant = false, Line = ftokens[ptr].Line, File = (uint)Files.Count
+                            Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                         });
                     }
                 } else if (ftokens[ptr].Type == TokenType.Break && Tokens.Count > 0) {
                     if (Tokens[Tokens.Count - 1].Type != TokenType.Break) {
                         Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
-                            Line = ftokens[ptr].Line, File = (uint)Files.Count
+                            Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                         });
                     } // else drop it as we don't want newlines following each other
                 } else if (IsOp(ftokens[ptr])) {
@@ -356,10 +356,10 @@ namespace Clawsemble
                         ftokens[ptr], Filename);
                 } else if (ftokens[ptr].Type == TokenType.Invalid || ftokens[ptr].Type == TokenType.Unexpected) { // catch the errors
                     throw new CodeError(CodeErrorType.TokenError, ftokens[ptr], Filename);
-                } else if (ftokens[ptr].Type != TokenType.Comment) {
+                } else if (ftokens[ptr].Type != TokenType.Comment && ftokens[ptr].Type != TokenType.Empty) {
                     // we cannot deal with the token just yet
                     Tokens.Add(new Token() { Type = ftokens[ptr].Type, Content = ftokens[ptr].Content,
-                        Line = ftokens[ptr].Line, File = (uint)Files.Count
+                        Position = ftokens[ptr].Position, Line = ftokens[ptr].Line, File = (uint)Files.Count
                     });
                 }
             }
