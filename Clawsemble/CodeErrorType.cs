@@ -19,6 +19,8 @@ namespace Clawsemble
         ExpectedSeperator,
         ExpectedBreak,
         ExpectedHeader,
+        ExpectedSymbol,
+        ExpectedInstruction,
         ArgumentInvalid,
         ArgumentRange,
         WordInvalid,

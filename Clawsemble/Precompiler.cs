@@ -124,7 +124,7 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Constant name can't be empty!", InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
                         string name = InputTokens[ptr].Content.Trim();
-                        if (IsNameAvailable(name)) // is the array name already used
+                        if (!IsNameAvailable(name)) // is the array name already used
                             throw new CodeError(CodeErrorType.WordCollision,
                                 string.Format("Name '{0}' already in use!", name),
                                 InputTokens[ptr],
@@ -248,7 +248,7 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Instruction name can't be empty!",
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         string mnemonic = InputTokens[ptr].Content.Trim().ToLower();
-                        if (IsNameAvailable(mnemonic, false)) // is the instruction already defined
+                        if (!IsNameAvailable(mnemonic, false)) // is the instruction already defined
                             throw new CodeError(CodeErrorType.WordCollision,
                                 string.Format("Name '{0}' already in use!", mnemonic),
                                 InputTokens[ptr],
@@ -420,7 +420,7 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Label name can't be empty!", tokBuf[ptr],
                                 GetFilename(tokBuf[ptr].File));
                         string name = tokBuf[ptr].Content.Trim();
-                        if (IsNameAvailable(name)) // is the label name already used
+                        if (!IsNameAvailable(name)) // is the label name already used
                             throw new CodeError(CodeErrorType.WordCollision,
                                 string.Format("Name '{0}' already in use!", name),
                                 tokBuf[ptr], GetFilename(tokBuf[ptr].File));
@@ -428,6 +428,18 @@ namespace Clawsemble
                     } else if (directive == "sym" || directive == "symbol") {
                         if (!string.IsNullOrEmpty(currRef.Name)) {
                             // save the last symbol
+                            // also append a ret to the end of symbols if there is none already
+                            if (currSym.Instructions.Count > 0) {
+                                string lastMnemoric = currSym.Instructions[currSym.Instructions.Count - 1].Signature.Mnemonic.ToLower();
+                                if (lastMnemoric != "ret" && lastMnemoric != "eop") {
+                                    currInstr.Signature = GetSignature("ret");
+                                    currSym.Instructions.Add(currInstr);
+                                }
+                            } else {
+                                currInstr.Signature = GetSignature("ret");
+                                currSym.Instructions.Add(currInstr);
+                            }
+                            currInstr = new Instruction();
                             currRef.Value = (byte)Symbols.Count;
                             Symbols.Add(currSym);
                             References.Add(currRef);
@@ -458,7 +470,8 @@ namespace Clawsemble
                         if (IsBeforeEOF(ptr, tokBuf.Count, 2)) {
                             // now we want to check if we got an optional fixed function id
                             if (tokBuf[ptr + 1].Type == TokenType.Seperator) {
-                                if (tokBuf[++ptr].Type != TokenType.Number)
+                                ptr += 2;
+                                if (tokBuf[ptr].Type != TokenType.Number)
                                     throw new CodeError(CodeErrorType.ExpectedNumber, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                                 // we got a fixed id
                                 if (!byte.TryParse(tokBuf[ptr].Content, out id))
@@ -514,11 +527,11 @@ namespace Clawsemble
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                     
                     if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) // no instruction encountered yet
-                        throw new CodeError(CodeErrorType.UnexpectedToken, "String without previous instruction!",
+                        throw new CodeError(CodeErrorType.ExpectedInstruction, "String without previous instruction!",
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                 } else if (tokBuf[ptr].Type == TokenType.Word) {
                     if (string.IsNullOrEmpty(currRef.Name)) // no symbol encountered yet
-                        throw new CodeError(CodeErrorType.UnexpectedToken, "Word without previous symbol!",
+                        throw new CodeError(CodeErrorType.ExpectedSymbol, "No symbol previously defined!",
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                     if (string.IsNullOrWhiteSpace(tokBuf[ptr].Content))
                         throw new CodeError(CodeErrorType.WordInvalid, "Empty word!",
@@ -536,40 +549,50 @@ namespace Clawsemble
                     } else { // this is an argument
                         NamedReference refr;
 
+                        if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) // no instruction open
+                            throw new CodeError(CodeErrorType.ExpectedInstruction, "Argument without previous instruction!",
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                         if (FindReference(name, out refr)) {
                             currInstr.Arguments.Add(new ArgumentToken(refr.Value, refr.Type));
                         } else // no reference found, just save it for later
                             currInstr.Arguments.Add(new ArgumentToken(name));
                     }
+                } else if (tokBuf[ptr].Type == TokenType.Number) {
+                    if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) // no instruction open
+                        throw new CodeError(CodeErrorType.ExpectedInstruction, "Argument without previous instruction!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                    long value;
+                    if (!long.TryParse(tokBuf[ptr].Content, out value))
+                        throw new CodeError(CodeErrorType.ConstantInvalid, "The constant is invalid!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                    currInstr.Arguments.Add(new ArgumentToken(value));
                 } else if (tokBuf[ptr].Type == TokenType.Break) {
                     // Finish instruction
-
-                }
+                    if (!string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) {
+                        currSym.Instructions.Add(currInstr);
+                        currInstr = new Instruction();
+                    }
+                } else
+                    throw new CodeError(CodeErrorType.UnexpectedToken, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
             }
+
+            if (!string.IsNullOrEmpty(currRef.Name)) {
+                // save the last symbol
+                if (currSym.Instructions.Count > 0) {
+                    string lastMnemoric = currSym.Instructions[currSym.Instructions.Count - 1].Signature.Mnemonic.ToLower();
+                    if (lastMnemoric != "ret" && lastMnemoric != "eop") {
+                        currInstr.Signature = GetSignature("ret");
+                        currSym.Instructions.Add(currInstr);
+                    }
+                } else {
+                    currInstr.Signature = GetSignature("ret");
+                    currSym.Instructions.Add(currInstr);
+                }
+                currRef.Value = (byte)Symbols.Count;
+                Symbols.Add(currSym);
+                References.Add(currRef);
+            } else
+                throw new CodeError(CodeErrorType.UnexpectedEOF, "No symbols defined!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
         }
-
-        /*
-         if (directive == "sym" || directive == "symbol") {
-
-                        // catch fixid collisions
-                        if (fixid) {
-                            if (symid > 254)
-                                throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
-                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            if (SymbolIndexExists(symid, sym))
-                                throw new CodeError(CodeErrorType.ArgumentInvalid, "Fixed slot already in use by another fixed symbol!",
-                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            sym = new Symbol(symname, symid); // add the symbol
-                        } else
-                            sym = new Symbol(symname); // add the symbol
-
-                        // make sure the line is terminated here
-                        if (IsBeforeEOF(Pointer, Tokens.Count)) {
-                            if (Tokens[++Pointer].Type != TokenType.Break)
-                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                        }
-                    } else 
-                    */
 
         /*
          } else if (Tokens[ptr].Type == TokenType.Word) {
@@ -650,6 +673,17 @@ namespace Clawsemble
             return (bool)(Pointer + ReqLength < AvlLength);
         }
 
+        private InstructionSignature GetSignature(string Name)
+        {
+            InstructionSignature sig;
+            if (FindSignature(Name, out sig))
+                return sig;
+            else if (Name != "nop")
+                return GetSignature("nop");
+            else
+                return new InstructionSignature();
+        }
+
         private bool SymbolIdExists(byte Id, out string Name)
         {
             foreach (NamedReference refr in References) {
@@ -666,11 +700,11 @@ namespace Clawsemble
         private bool IsNameAvailable(string Name, bool CaseSensitive = true)
         {
             if (FindReference(Name, CaseSensitive))
-                return true;
+                return false;
             if (FindSignature(Name))
-                return true;
+                return false;
 
-            return false;
+            return true;
         }
 
         private bool FindReference(string Name, out NamedReference Reference, bool CaseSensitive = true)

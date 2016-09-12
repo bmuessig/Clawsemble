@@ -27,7 +27,7 @@ namespace Clawsemble
             //    Console.WriteLine(ex.Message);
             //   return;
             // }
-            Console.WriteLine("Compiling successful!");
+            Console.WriteLine("Precompiling successful!");
         }
     }
 }

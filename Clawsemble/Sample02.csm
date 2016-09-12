@@ -1,2 +1,25 @@
-﻿
-#err '\nd'
+﻿.CWX:16  ;16 bit executable, you can also use 32 and 64-bit
+
+#define num_values 3  ; number of values is 3
+.vals values, {10, 5, 2}  ; constant short (16-bit) array with the values
+
+.sym main:0  ; main entry point, you can name it whatever you want as long as you set its id to 0
+        xci values  ; create a new buffer filled with the constant "values" from above
+        lc 0  ; load the sum start number 0 onto the stack
+        dp  ; load the counter start number 0 onto the stack by duplicating the last zero
+    .lbl forloop_bgn  ; new label (start of for-loop)
+        dp  ; duplicate the uppermost value to save it
+        ltc num_values  ; check if counter is less than num_values (3)
+        jpn forloop_end  ; if last comparision was false end the for-loop
+        sw  ; swap the counter with the sum
+        ld 1  ; copy the counter onto the top of the stack
+        lxd  ; load value in the values array at the counter position
+        add  ; add the value from the array to the sum
+        sw  ; swap to the counter again
+        icr  ; increment the counter
+        jp forloop_bgn  ; jump to the begin of the for-loop again
+    .lbl forloop_end  ; end of the for loop
+        dv  ; drop the counter
+        divc num_values  ; divide the sum by the number of values
+        dbdv  ; print the result to the debug console
+        eop  ; optional end of program statement
