@@ -57,6 +57,8 @@
     <Compile Include="Instruction.cs" />
     <Compile Include="Version.cs" />
     <Compile Include="MetaHeader.cs" />
+    <Compile Include="CompilationToken.cs" />
+    <Compile Include="CompilationTokenType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

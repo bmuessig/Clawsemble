@@ -6,7 +6,7 @@ namespace Clawsemble
 {
     public class Compiler
     {
-        // User provided
+        // User provided input
         public List<Token> Tokens { get; set; }
         public List<string> Files { get; set; }
 
@@ -18,7 +18,6 @@ namespace Clawsemble
 
         // Stage 0 autofills the following variables
         public BinaryType BinaryType { get; private set; }
-        private int EndOfHeaderPointer = 0;
 
         // Stage 1 autofills the following variables
         public List<Symbol> Symbols { get; private set; }
@@ -63,6 +62,7 @@ namespace Clawsemble
             Instructions.AddRange(DefaultInstructions.CompileList());
         }
 
+        // Just don't use this function. I don't see any reason to keep it anyways.
         public void Cleanup()
         {
             Binary.Clear();
@@ -84,120 +84,54 @@ namespace Clawsemble
             }
         }
 
-        public void Stage0()
+        public void Precompile()
         {
             Cleanup();
 
-            // Find the required header and extract the bitness and executable target
+            bool foundHeader = false;
+
+            // Find the header, then find and add all the .lbl, .sym, .dat, .val, .exi and .mod to the database
             for (; Pointer < Tokens.Count; Pointer++) {
                 if (Tokens[Pointer].Type == TokenType.CompilerDirective) {
                     if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty compiler directive!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        throw new CodeError(CodeErrorType.DirectiveInvalid, "Empty compiler directive!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                     string directive = Tokens[Pointer].Content.Trim().ToLower();
 
-                    if (directive != "cwx" && directive != "cwl")
-                        throw new CodeError(CodeErrorType.ExpectedHeader, "Expected executable or library header!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                    if (directive == "cwx" || directive == "executable" || directive == "cwl" || directive == "library") {
+                        if (!foundHeader)
+                            foundHeader = true;
+                        else
+                            throw new CodeError(CodeErrorType.UnexpectedDirective, "Header already given previously!",
+                                Tokens[Pointer], GetFilename(Tokens[Pointer].File));
 
-                    if (directive == "cwx") { // executable
-                        BinaryType = BinaryType.Executable;
-                    } else if (directive == "cwl") { // library
-                        BinaryType = BinaryType.Library;
-                    }
+                        if (directive == "cwx" || directive == "executable") { // executable
+                            BinaryType = BinaryType.Executable;
+                        } else if (directive == "cwl" || directive == "library") { // library; elseif just kept for future expandability
+                            BinaryType = BinaryType.Library;
+                        }
 
-                    if (!IsBeforeEOF(Pointer, Tokens.Count, 2))
-                        throw new CodeError(CodeErrorType.UnexpectedEOF,
-                            Tokens[Tokens.Count - 1],
-                            GetFilename(Tokens[Tokens.Count - 1].File));
-                    if (Tokens[++Pointer].Type != TokenType.Seperator)
-                        throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    if (Tokens[++Pointer].Type != TokenType.Number)
-                        throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    byte bits;
-                    if (!byte.TryParse(Tokens[Pointer].Content, out bits))
-                        throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid bits argument!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    if (bits == 16) {
-                        BinaryType |= BinaryType.Bits16;
-                    } else if (bits == 32) {
-                        BinaryType |= BinaryType.Bits32;
-                    } else if (bits == 64) {
-                        BinaryType |= BinaryType.Bits64;
-                    } else
-                        throw new CodeError(CodeErrorType.ConstantRange, "Only 16, 32 and 64 bits are supported!",
-                            Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    EndOfHeaderPointer = ++Pointer;
-                    break;
-                } else if (Tokens[Pointer].Type != TokenType.Break)
-                    throw new CodeError(CodeErrorType.ExpectedHeader, "Expected initial header!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-            }
-        }
-
-        public void Stage1()
-        {
-            Symbol sym = new Symbol();
-
-            // Find and add all the .lbl, .sym, .dat, .val, .exi and .mod to the database
-            for (; Pointer < Tokens.Count; Pointer++) {
-                if (Tokens[Pointer].Type == TokenType.CompilerDirective) {
-                    if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty compiler directive!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                    string directive = Tokens[Pointer].Content.Trim().ToLower();
-
-                    if (directive == "sym" || directive == "symbol") {
-                        if (!IsBeforeEOF(Pointer, Tokens.Count))
+                        if (!IsBeforeEOF(Pointer, Tokens.Count, 2))
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
                                 Tokens[Tokens.Count - 1],
                                 GetFilename(Tokens[Tokens.Count - 1].File));
-                        if (Tokens[++Pointer].Type != TokenType.Word)
-                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-
-                        string symname;
-                        byte symid = 0;
-                        bool fixid = false;
-
-                        if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                            throw new CodeError(CodeErrorType.WordInvalid, "Symbol name can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                        symname = Tokens[Pointer].Content.Trim();
-
-                        // does the symbol already exist?
-                        if (SymbolExists(symname, sym))
-                            throw new CodeError(CodeErrorType.WordCollision, "Symbol already defined earlier!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-
-                        if (IsBeforeEOF(Pointer, Tokens.Count, 2)) {
-                            // now we want to check if we got an optional fixed function id
-                            if (Tokens[Pointer + 1].Type == TokenType.Seperator) {
-                                if (Tokens[++Pointer].Type != TokenType.Number)
-                                    throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                                // we got a fixed id
-                                if (!byte.TryParse(Tokens[Pointer].Content, out symid))
-                                    throw new CodeError(CodeErrorType.ArgumentInvalid, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                                fixid = true;
-                            } else if (Tokens[Pointer + 1].Type != TokenType.Break) {
-                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer + 1], GetFilename(Tokens[Pointer + 1].File));
-                            } else
-                                continue;
-                        }
-
-                        // If there already is a symbol, save it
-                        if (!string.IsNullOrWhiteSpace(sym.Name))
-                            Symbols.Add(sym);
-
-                        // catch fixid collisions
-                        if (fixid) {
-                            if (symid > 254)
-                                throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
-                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            if (SymbolIndexExists(symid, sym))
-                                throw new CodeError(CodeErrorType.ArgumentInvalid, "Fixed slot already in use by another fixed symbol!",
-                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                            sym = new Symbol(symname, symid); // add the symbol
+                        if (Tokens[++Pointer].Type != TokenType.Seperator)
+                            throw new CodeError(CodeErrorType.ExpectedSeperator, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        if (Tokens[++Pointer].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        byte bits;
+                        if (!byte.TryParse(Tokens[Pointer].Content, out bits))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid bits argument!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        if (bits == 16) {
+                            BinaryType |= BinaryType.Bits16;
+                        } else if (bits == 32) {
+                            BinaryType |= BinaryType.Bits32;
+                        } else if (bits == 64) {
+                            BinaryType |= BinaryType.Bits64;
                         } else
-                            sym = new Symbol(symname); // add the symbol
-
-                        // make sure the line is terminated here
-                        if (IsBeforeEOF(Pointer, Tokens.Count)) {
-                            if (Tokens[++Pointer].Type != TokenType.Break)
-                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                        }
+                            throw new CodeError(CodeErrorType.ConstantRange, "Only 16, 32 and 64 bits are supported!",
+                                Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                    } else if (!foundHeader) {
+                        throw new CodeError(CodeErrorType.ExpectedHeader, "Expected executable or library header!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                     } else if (directive == "dat" || directive == "data" ||
                                directive == "str" || directive == "string" ||
                                directive == "val" || directive == "values") {
@@ -368,11 +302,92 @@ namespace Clawsemble
                                 throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
                         }
                     }
-                } else if (Tokens[Pointer].Type != TokenType.Break) {
-                    throw new CodeError(CodeErrorType.UnexpectedToken, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                }
+                } else if (!foundHeader && Tokens[Pointer].Type != TokenType.Break &&
+                           Tokens[Pointer].Type != TokenType.Empty && Tokens[Pointer].Type != TokenType.Comment) {
+                    throw new CodeError(CodeErrorType.ExpectedHeader, "Expected initial header!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                } else if (Tokens[Pointer].Type == TokenType.String) {
+                    string value;
+                    if (string.IsNullOrEmpty(Tokens[Pointer].Content))
+                        value = "";
+                    else
+                        value = Tokens[Pointer].Content;
+
+                    int constId = RegisterConstant(value);
+                    if (constId == -1)
+                        throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
+                            Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                    
+                    // write the returned value to the program
+                } else if (Tokens[Pointer].Type == TokenType.Word || Tokens[Pointer].Type == TokenType.Number ||
+                           Tokens[Pointer].Type == TokenType.Seperator || Tokens[Pointer].Type == TokenType.Break) {
+
+                    // write these tokens to the next stage
+                } else if (Tokens[Pointer].Type == TokenType.Unexpected || Tokens[Pointer].Type == TokenType.Invalid) {
+                    throw new CodeError(CodeErrorType.TokenError, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                } else if (Tokens[Pointer].Type != TokenType.Comment && Tokens[Pointer].Type != TokenType.Empty)
+                    throw new CodeError(CodeErrorType.UnexpectedToken, "Unsupported token!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
             }
         }
+
+        /*
+         if (directive == "sym" || directive == "symbol") {
+                        if (!IsBeforeEOF(Pointer, Tokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF,
+                                Tokens[Tokens.Count - 1],
+                                GetFilename(Tokens[Tokens.Count - 1].File));
+                        if (Tokens[++Pointer].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+
+                        string symname;
+                        byte symid = 0;
+                        bool fixid = false;
+
+                        if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
+                            throw new CodeError(CodeErrorType.WordInvalid, "Symbol name can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        symname = Tokens[Pointer].Content.Trim();
+
+                        // does the symbol already exist?
+                        if (SymbolExists(symname, sym))
+                            throw new CodeError(CodeErrorType.WordCollision, "Symbol already defined earlier!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+
+                        if (IsBeforeEOF(Pointer, Tokens.Count, 2)) {
+                            // now we want to check if we got an optional fixed function id
+                            if (Tokens[Pointer + 1].Type == TokenType.Seperator) {
+                                if (Tokens[++Pointer].Type != TokenType.Number)
+                                    throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                                // we got a fixed id
+                                if (!byte.TryParse(Tokens[Pointer].Content, out symid))
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                                fixid = true;
+                            } else if (Tokens[Pointer + 1].Type != TokenType.Break) {
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer + 1], GetFilename(Tokens[Pointer + 1].File));
+                            } else
+                                continue;
+                        }
+
+                        // If there already is a symbol, save it
+                        if (!string.IsNullOrWhiteSpace(sym.Name))
+                            Symbols.Add(sym);
+
+                        // catch fixid collisions
+                        if (fixid) {
+                            if (symid > 254)
+                                throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
+                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                            if (SymbolIndexExists(symid, sym))
+                                throw new CodeError(CodeErrorType.ArgumentInvalid, "Fixed slot already in use by another fixed symbol!",
+                                    Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                            sym = new Symbol(symname, symid); // add the symbol
+                        } else
+                            sym = new Symbol(symname); // add the symbol
+
+                        // make sure the line is terminated here
+                        if (IsBeforeEOF(Pointer, Tokens.Count)) {
+                            if (Tokens[++Pointer].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
+                        }
+                    } else 
+                    */
 
         /*
          } else if (Tokens[ptr].Type == TokenType.Word) {
@@ -543,9 +558,10 @@ namespace Clawsemble
                         return ptr;
                     ptr++;
                 }
-
-                return -1;
+                return -2; // just to make the compiler happy
             } else {
+                if (Constants.Count >= 255)
+                    return -1;
                 Constants.Add(Constant);
                 return Constants.Count - 1;
             }

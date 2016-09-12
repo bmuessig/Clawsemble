@@ -44,7 +44,7 @@ namespace Clawsemble
             for (int ptr = 0; ptr < ftokens.Count; ptr++) {
                 if (ftokens[ptr].Type == TokenType.PreprocessorDirective) {
                     if (string.IsNullOrEmpty(ftokens[ptr].Content))
-                        throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", ftokens[ptr], Filename);
+                        throw new CodeError(CodeErrorType.DirectiveInvalid, "Empty preprocessor directive!", ftokens[ptr], Filename);
 
                     directive = ftokens[ptr].Content.Trim().ToLower();
                     if (directive == "if" || directive == "elif" || directive == "elseif") {
@@ -296,7 +296,7 @@ namespace Clawsemble
                         } else
                             throw new CodeError(CodeErrorType.UnexpectedEOF, ftokens[ptr].Line, Filename);
                     } else
-                        throw new CodeError(CodeErrorType.UnknownDirective, ftokens[ptr], Filename);
+                        throw new CodeError(CodeErrorType.DirectiveUnknown, ftokens[ptr], Filename);
                 } else if (ftokens[ptr].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
                     int origi = ptr;
                     Constant eval;
@@ -385,8 +385,8 @@ namespace Clawsemble
             for (; IsBeforeEOF(Pointer, Tokens.Count); Pointer++) {
                 if (Tokens[Pointer].Type != TokenType.PreprocessorDirective)
                     continue;
-                if (string.IsNullOrEmpty(Tokens[Pointer].Content))
-                    throw new CodeError(CodeErrorType.UnknownDirective, "Empty preprocessor directive!", Tokens[Pointer]);
+                if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
+                    throw new CodeError(CodeErrorType.DirectiveInvalid, "Empty preprocessor directive!", Tokens[Pointer]);
                 
                 directive = Tokens[Pointer].Content.Trim().ToLower();
                 if (directive == "endif") {

@@ -5,7 +5,8 @@ namespace Clawsemble
     public enum CodeErrorType
     {
         UnknownError,
-        UnknownDirective,
+        DirectiveInvalid,
+        DirectiveUnknown,
         TokenError,
         IntentionalError,
         DivisionByZero,
@@ -25,6 +26,7 @@ namespace Clawsemble
         UnexpectedEOF,
         UnexpectedToken,
         UnexpectedOperator,
+        UnexpectedDirective,
         ExpressionEmpty,
         ExpressionInvalid,
         ConstantInvalid,

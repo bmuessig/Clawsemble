@@ -19,8 +19,7 @@ namespace Clawsemble
 
             var comp = new Compiler(preproc.Tokens, preproc.Files);
             try {
-                comp.Stage0();
-                comp.Stage1();
+                comp.Precompile();
             } catch (CodeError error) {
                 Console.WriteLine(error.Message);
                 return;

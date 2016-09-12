@@ -9,16 +9,18 @@ namespace Clawsemble
         public string Name;
         public byte Index;
         public bool IsIndexFixed;
+        public bool IsIndexSet;
 
         // Data
         public List<Instruction> Instructions;
 
-        //.ctor
+        //.ctors
         public Symbol(string Name)
         {
             this.Name = Name;
             this.Index = 0;
             this.IsIndexFixed = false;
+            this.IsIndexSet = false;
             this.Instructions = new List<Instruction>();
         }
 
@@ -27,7 +29,14 @@ namespace Clawsemble
             this.Name = Name;
             this.Index = Index;
             this.IsIndexFixed = true;
+            this.IsIndexSet = true;
             this.Instructions = new List<Instruction>();
+        }
+
+        // Compile current symbol
+        public byte[] Compile(List<Symbol> SymbolTable)
+        {
+            throw new NotImplementedException();
         }
     }
 }
