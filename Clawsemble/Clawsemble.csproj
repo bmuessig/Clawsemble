@@ -59,6 +59,8 @@
     <Compile Include="CompilerToken.cs" />
     <Compile Include="CompilerTokenType.cs" />
     <Compile Include="Precompiler.cs" />
+    <Compile Include="NamedReference.cs" />
+    <Compile Include="ReferenceType.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

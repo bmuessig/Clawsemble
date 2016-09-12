@@ -16,7 +16,8 @@ namespace Clawsemble
         // Stage 1 autofills the following variables
         public BinaryType BinaryType { get; private set; }
         public MetaHeader Header { get; private set; }
-        public List<byte[]> Constants { get; private set; }
+        public List<NamedReference> References { get; private set; }
+        public List<byte[]> ConstantData { get; private set; }
         public Dictionary<byte, ModuleSlot> Slots { get; private set; }
 
         // Stage 2 autofills the following variables
@@ -37,7 +38,8 @@ namespace Clawsemble
             this.Filenames = Filenames;
 
             this.Binary = new List<byte>();
-            this.Constants = new List<byte[]>();
+            this.References = new List<NamedReference>();
+            this.ConstantData = new List<byte[]>();
             this.Symbols = new List<Symbol>();
             this.Slots = new Dictionary<byte, ModuleSlot>();
             this.Header = new MetaHeader();
@@ -49,7 +51,8 @@ namespace Clawsemble
         public void Cleanup()
         {
             Binary.Clear();
-            Constants.Clear();
+            References.Clear();
+            ConstantData.Clear();
             Instructions.Clear();
             Instructions.AddRange(DefaultInstructions.CompileList());
             // TODO ADD REMAINING CLEARS
@@ -134,6 +137,12 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Constant name can't be empty!", InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
                         string name = InputTokens[ptr].Content.Trim();
+                        if (IsNameAvailable(name)) // is the array name already used
+                            throw new CodeError(CodeErrorType.OperationInvalid,
+                                string.Format("Name '{0}' already in use!", name),
+                                InputTokens[ptr],
+                                GetFilename(InputTokens[ptr].File));
+
                         int constid = -1;
 
                         if (directive == "str" || directive == "string") {
@@ -179,8 +188,11 @@ namespace Clawsemble
                                     throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid byte value!",
                                         InputTokens[ptr], GetFilename(InputTokens[ptr].File)); 
                                 data.AddRange(NumberToBytes(val));
-                                if (InputTokens[ptr + 1].Type == TokenType.Break)
-                                    break;
+
+                                if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                    if (InputTokens[ptr + 1].Type == TokenType.Break)
+                                        break;
+                                }
                             }
 
                             constid = RegisterConstant(data.ToArray());
@@ -195,11 +207,6 @@ namespace Clawsemble
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
 
-                        // pass the returned value to next pass
-                        tokBuf.Add(new Token() { Type = TokenType.Number, Content = constid.ToString(),
-                            Line = InputTokens[ptr].Line, File = InputTokens[ptr].File, Position = InputTokens[ptr].Position
-                        });
-
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Break)
@@ -210,8 +217,8 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
                                 InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
-                        if (InputTokens[++ptr].Type != TokenType.String)
-                            throw new CodeError(CodeErrorType.ExpectedString, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        if (InputTokens[++ptr].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         if (string.IsNullOrWhiteSpace(InputTokens[ptr].Content))
                             throw new CodeError(CodeErrorType.WordInvalid, "Module name can't be empty!", InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
@@ -254,9 +261,9 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Instruction name can't be empty!",
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         string mnemonic = InputTokens[ptr].Content.Trim().ToLower();
-                        if (FindSignature(mnemonic)) // is the instruction already defined
+                        if (IsNameAvailable(mnemonic, false)) // is the instruction already defined
                                 throw new CodeError(CodeErrorType.OperationInvalid,
-                                string.Format("Instruction {0} already defined!", mnemonic),
+                                string.Format("Name '{0}' already in use!", mnemonic),
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
                         // check for seperator (not that it is really ever needed but it looks nice)
@@ -278,11 +285,10 @@ namespace Clawsemble
                         var args = new List<InstructionArgumentType>();
                         // Now go for args until eof or break
                         while (IsBeforeEOF(ptr, InputTokens.Count, 2)) { // 2 because seperator, then another signature
-                            if (InputTokens[ptr + 1].Type != TokenType.Seperator)
-                                break; // only continue while there are seperators
-                            if (InputTokens[ptr + 2].Type != TokenType.String)
-                                break;
-                            ptr += 2; // now we know the args match, so advance the pointer
+                            if (InputTokens[++ptr].Type != TokenType.Seperator)
+                                throw new CodeError(CodeErrorType.ExpectedSeperator, InputTokens[ptr], GetFilename(InputTokens[ptr].File));    
+                            if (InputTokens[++ptr].Type != TokenType.String)
+                                throw new CodeError(CodeErrorType.ExpectedSeperator, InputTokens[ptr], GetFilename(InputTokens[ptr].File)); 
                             if (string.IsNullOrWhiteSpace(InputTokens[ptr].Content))
                                 throw new CodeError(CodeErrorType.WordInvalid,
                                     "Custom instruction signature argument type can't be empty!", InputTokens[ptr],
@@ -293,6 +299,11 @@ namespace Clawsemble
                                     InputTokens[ptr],
                                     GetFilename(InputTokens[ptr].File));
                             args.Add(type);
+
+                            if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                if (InputTokens[ptr + 1].Type == TokenType.Break)
+                                    break;
+                            }
                         }
 
                         Instructions.Add(new InstructionSignature(mnemonic, code, true, args.ToArray()));
@@ -584,12 +595,63 @@ namespace Clawsemble
             return (bool)(Pointer + ReqLength < AvlLength);
         }
 
-        private bool FindSignature(string Word, out InstructionSignature Signature)
+        private bool IsNameAvailable(string Name, bool CaseSensitive = true)
         {
-            Word = Word.Trim().ToLower();
+            if (FindReference(Name, CaseSensitive))
+                return true;
+            if (FindSignature(Name))
+                return true;
+
+            return false;
+        }
+
+        private bool FindReference(string Name, out NamedReference Reference, bool CaseSensitive = true)
+        {
+            if (!CaseSensitive)
+                Name = Name.Trim().ToLower();
+
+            foreach (var reference in References) {
+                if (CaseSensitive) {
+                    if (reference.Name == Name) {
+                        Reference = reference;
+                        return true;
+                    }
+                } else {
+                    if (reference.Name.ToLower() == Name) {
+                        Reference = reference;
+                        return true;
+                    }
+                }
+            }
+
+            Reference = null;
+            return false;
+        }
+
+        private bool FindReference(string Name, bool CaseSensitive = true)
+        {
+            if (!CaseSensitive)
+                Name = Name.Trim().ToLower();
+
+            foreach (var reference in References) {
+                if (CaseSensitive) {
+                    if (reference.Name == Name)
+                        return true;
+                } else {
+                    if (reference.Name.ToLower() == Name)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool FindSignature(string Name, out InstructionSignature Signature)
+        {
+            Name = Name.Trim().ToLower();
 
             foreach (var sig in Instructions) {
-                if (sig.Mnemonic.ToLower() == Word) {
+                if (sig.Mnemonic.ToLower() == Name) {
                     Signature = sig;
                     return true;
                 }
@@ -599,38 +661,15 @@ namespace Clawsemble
             return false;
         }
 
-        private bool FindSignature(string Word, bool QueryExtended = true, bool QueryDefault = true)
+        private bool FindSignature(string Name)
         {
-            Word = Word.Trim().ToLower();
+            Name = Name.Trim().ToLower();
 
             foreach (var sig in Instructions) {
-                if (sig.Mnemonic.ToLower() == Word)
+                if (sig.Mnemonic.ToLower() == Name)
                     return true;
             }
 
-            return false;
-        }
-
-        private bool FindSignature(byte Code)
-        {
-            foreach (var sig in Instructions) {
-                if (sig.Code == Code)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private bool FindSignature(byte Code, out InstructionSignature Signature)
-        {
-            foreach (var sig in Instructions) {
-                if (sig.Code == Code) {
-                    Signature = sig;
-                    return true;
-                }
-            }
-
-            Signature = new InstructionSignature();
             return false;
         }
 
@@ -638,19 +677,19 @@ namespace Clawsemble
         {
             if (Constant.Length < 1)
                 return -1;
-            if (Constants.Contains(Constant)) {
+            if (ConstantData.Contains(Constant)) {
                 int ptr = 0;
-                foreach (byte[] entry in Constants) {
+                foreach (byte[] entry in ConstantData) {
                     if (entry == Constant)
                         return ptr;
                     ptr++;
                 }
                 return -1; // just to make the compiler happy
             } else {
-                if (Constants.Count >= 255)
+                if (ConstantData.Count >= 255)
                     return -2;
-                Constants.Add(Constant);
-                return Constants.Count - 1;
+                ConstantData.Add(Constant);
+                return ConstantData.Count - 1;
             }
         }
 

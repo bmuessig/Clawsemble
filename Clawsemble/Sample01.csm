@@ -6,6 +6,8 @@
 	ARGTYPE_ARRAY
 }
 
+.vals test : {123, 3244, 222, 2}
+
 																; required, MUST be first directive in every file,
 				; CWX = executable, CWL = library; 16 = 16 bit executable, 32 bit, 64 bit
 				; everything's case insensitive
