@@ -17,17 +17,23 @@ namespace Clawsemble
             }
             Console.WriteLine("Tokenizing and preprocessing successful!");
 
-            var comp = new Precompiler();
+            var pcomp = new Precompiler();
             try {
-                comp.Precompile(preproc.Tokens, preproc.Files);
+                pcomp.Precompile(preproc.Tokens, preproc.Files);
             } catch (CodeError error) {
                 Console.WriteLine(error.Message);
                 return;
-            } //catch (Exception ex) {
-            //    Console.WriteLine(ex.Message);
-            //   return;
-            // }
+            }
             Console.WriteLine("Precompiling successful!");
+
+            var comp = new Compiler();
+            try {
+                
+            } catch (CodeError error) {
+                Console.WriteLine(error.Message);
+                return;
+            }
+            Console.WriteLine("Compiling successful!");
         }
     }
 }

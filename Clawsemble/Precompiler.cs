@@ -46,7 +46,7 @@ namespace Clawsemble
         public void Precompile(List<Token>InputTokens, List<string>Filenames = null)
         {
             var tokBuf = new List<Token>();
-            bool foundHeader = false;
+            bool foundHeader = false, foundMain = false;
             int ptr;
 
             // Save the list of filenames
@@ -499,6 +499,8 @@ namespace Clawsemble
                                         string.Format("Fixed slot {0} already in use by fixed symbol ({1})!", fixid, collName),
                                         tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                             }
+                            if (id == 0)
+                                foundMain = true;
                         }
 
                         // check for break
@@ -591,82 +593,28 @@ namespace Clawsemble
                 Symbols.Add(currSym);
                 References.Add(currRef);
             } else
-                throw new CodeError(CodeErrorType.UnexpectedEOF, "No symbols defined!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
-        }
+                throw new CodeError(CodeErrorType.ExpectedSymbol, "No symbols defined!");
 
-        /*
-         } else if (Tokens[ptr].Type == TokenType.Word) {
-                    if (string.IsNullOrWhiteSpace(Tokens[ptr].Content))
-                        throw new CodeError(CodeErrorType.WordInvalid, "Empty instruction!", Tokens[ptr], GetFilename(Tokens[ptr]));
+            // Check if we got a valid main symbol
+            if (!foundMain && Symbols.Count > 1) {
+                NamedReference refr;
+                if (!FindReference("main", out refr, false))
+                    throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
+                if (refr.Type != ReferenceType.Symbol)
+                    throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
+            } else if (!foundMain && Symbols.Count == 1) // explicitly set the only function as main
+                Symbols[0].SetIndex(0);
 
-                    InstructionSignature instr;
-                    if (FindSignature(Tokens[ptr].Content, out instr)) {
-                        DoInstruction(instr, ref ptr, Binary);
-                    } else
-                        throw new CodeError(CodeErrorType.WordUnknown, "Unknown instruction!", Tokens[ptr], GetFilename(Tokens[ptr]));
-                } else if (Tokens[ptr].Type == TokenType.Number) {
-                    for (; Tokens[ptr].Type != TokenType.Break && Tokens[ptr].Type != TokenType.Seperator; ptr++) {
-                        if (Tokens[ptr].Type == TokenType.String) {
-                            
-                        } else if (Tokens[ptr].Type == TokenType.Number) {
-
-                        }
-                    }
+            // Now auto-id the remaining symbols
+            foreach (Symbol sym in Symbols) {
+                if (!sym.IsIndexSet) {
+                    int autoindex = SymbolFreeId();
+                    if (autoindex < 0)
+                        throw new CodeError(CodeErrorType.StackOverflow, "Too many symbols (max. 255 per file)!");
+                    sym.SetIndex((byte)autoindex);
                 }
-           */
-
-        /*
-        private void DoInstruction(InstructionSignature Instruction, ref int Pointer, List<byte> Bytes)
-        {
-            int argnum = 0;
-            Bytes.Add(Instruction.Code);
-
-            foreach (InstructionArgumentType arg in Instruction.Arguments) {
-                if (!IsBeforeEOF(Pointer++, InputTokens.Count))
-                    throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[Pointer - 1].Line, GetFilename(InputTokens[Pointer].File));
-                if (string.IsNullOrWhiteSpace(InputTokens[Pointer].Content))
-                    throw new CodeError(CodeErrorType.ConstantInvalid, "Constant is empty!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                argnum++;
-
-                if (arg == InstructionArgumentType.Number) {
-                    if (InputTokens[Pointer].Type != TokenType.Number)
-                        throw new CodeError(CodeErrorType.ExpectedNumber, InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-
-                    long val;
-                    if (!long.TryParse(InputTokens[Pointer].Content, out val))
-                        throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                    Bytes.AddRange(BitConverter.GetBytes(val));
-
-                    continue;
-                }
-
-                if ((arg & InstructionArgumentType.Label) > 0) {
-
-                }
-
-                if ((arg & InstructionArgumentType.String) > 0) {
-
-                }
-
-                if ((arg & InstructionArgumentType.Byte) > 0) {
-                    if (InputTokens[Pointer].Type != TokenType.Number)
-                        throw new CodeError(CodeErrorType.ExpectedNumber, InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-
-                    byte val;
-                    if (!byte.TryParse(InputTokens[Pointer].Content, out val))
-                        throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                    Bytes.Add(val);
-
-                    continue;
-                }
-
-                throw new CodeError(CodeErrorType.SignatureMissmatch,
-                    string.Format("The constant does not match the signature ({1}) of argument #{0} of the instruction \"{2}\"!",
-                        argnum, arg.ToString(), Instruction.Mnemonic),
-                    InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
             }
         }
-    */
 
         private bool IsBeforeEOF(int Pointer, int AvlLength, int ReqLength = 1)
         {
@@ -695,6 +643,27 @@ namespace Clawsemble
 
             Name = null;
             return false;
+        }
+
+        private bool SymbolIdExists(byte Id)
+        {
+            foreach (NamedReference refr in References) {
+                if (refr.Type == ReferenceType.Symbol && refr.Value == Id)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private int SymbolFreeId()
+        {
+            byte id = 0;
+            for (; id <= 254; id++) {
+                if (!SymbolIdExists(id))
+                    return id;
+            }
+
+            return -1;
         }
 
         private bool IsNameAvailable(string Name, bool CaseSensitive = true)
