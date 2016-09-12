@@ -5,7 +5,7 @@ namespace Clawsemble
 {
     public static class DefaultInstructions
     {
-        public static InstructionSignature[] CompileList()
+        public static List<InstructionSignature> CompileList()
         {
             var instrs = new List<InstructionSignature>();
 
@@ -136,7 +136,7 @@ namespace Clawsemble
             instrs.Add(new InstructionSignature("gtc", 0x7e, InstructionArgumentType.Number));
             instrs.Add(new InstructionSignature("gteqc", 0x7f));
 
-            return instrs.ToArray();
+            return instrs;
         }
     }
 }

@@ -6,67 +6,41 @@ namespace Clawsemble
 {
     public class Precompiler
     {
-        // User provided
-        public List<Token> InputTokens { get; set; }
-        public List<string> Filenames { get; set; }
-
         // Automatically filled, but can be user-adjusted
         public List<InstructionSignature> Instructions { get; private set; }
+
+        // Shared accross Stage 1 and Stage 2
+        public List<NamedReference> References { get; private set; }
 
         // Stage 1 autofills the following variables
         public BinaryType BinaryType { get; private set; }
         public MetaHeader Header { get; private set; }
-        public List<NamedReference> References { get; private set; }
-        public List<byte[]> ConstantData { get; private set; }
+        public List<byte[]> Constants { get; private set; }
         public Dictionary<byte, ModuleSlot> Slots { get; private set; }
 
         // Stage 2 autofills the following variables
         public List<Symbol> Symbols { get; private set; }
-
-        // Compile autofills the following variables
-        public List<byte> Binary { get; private set; }
 
         // Misc. constant values
         private const int MaxSlotNameLength = 6;
         private const int MaxSlots = 16;
         private const byte MaxNativeInstrs = 0x7f;
 
-        // FIXME
+        // Files
+        private List<string> Filenames;
+
         public Precompiler()
         {
-            this.InputTokens = InputTokens;
-            this.Filenames = Filenames;
-
-            this.Binary = new List<byte>();
-            this.References = new List<NamedReference>();
-            this.ConstantData = new List<byte[]>();
-            this.Symbols = new List<Symbol>();
-            this.Slots = new Dictionary<byte, ModuleSlot>();
-            this.Header = new MetaHeader();
-            this.BinaryType = 0;
             Instructions = new List<InstructionSignature>();
-        }
 
-        //FIXME
-        public void Cleanup()
-        {
-            Binary.Clear();
-            References.Clear();
-            ConstantData.Clear();
-            Instructions.Clear();
-            Instructions.AddRange(DefaultInstructions.CompileList());
-            // TODO ADD REMAINING CLEARS
+            References = new List<NamedReference>();
 
-            Symbols.Clear();
-            Slots.Clear();
             BinaryType = 0;
-        }
+            Header = new MetaHeader();
+            Constants = new List<byte[]>();
+            Slots = new Dictionary<byte, ModuleSlot>();
 
-        private void ClearArray(Array Array)
-        {
-            for (int i = 0; i < Array.Length; i++) {
-                Array.SetValue(null, i);
-            }
+            Symbols = new List<Symbol>();
         }
 
         public void Precompile(List<Token>InputTokens, List<string>Filenames = null)
@@ -75,8 +49,21 @@ namespace Clawsemble
             bool foundHeader = false;
             int ptr;
 
+            // Save the list of filenames
+            this.Filenames = Filenames;
+
             // Clear out the arrays
-            Cleanup();
+            Instructions.Clear();
+            Instructions.AddRange(DefaultInstructions.CompileList());
+
+            References.Clear();
+
+            BinaryType = 0;
+            Header = new MetaHeader();
+            Constants.Clear();
+            Slots.Clear();
+
+            Symbols.Clear();
 
             // Find the header, then find and add all the meta, .dat, .val, .exi and .mod to the database
             for (ptr = 0; ptr < InputTokens.Count; ptr++) {
@@ -138,7 +125,7 @@ namespace Clawsemble
                                 GetFilename(InputTokens[ptr].File));
                         string name = InputTokens[ptr].Content.Trim();
                         if (IsNameAvailable(name)) // is the array name already used
-                            throw new CodeError(CodeErrorType.OperationInvalid,
+                            throw new CodeError(CodeErrorType.WordCollision,
                                 string.Format("Name '{0}' already in use!", name),
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
@@ -262,7 +249,7 @@ namespace Clawsemble
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         string mnemonic = InputTokens[ptr].Content.Trim().ToLower();
                         if (IsNameAvailable(mnemonic, false)) // is the instruction already defined
-                                throw new CodeError(CodeErrorType.OperationInvalid,
+                            throw new CodeError(CodeErrorType.WordCollision,
                                 string.Format("Name '{0}' already in use!", mnemonic),
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
@@ -390,22 +377,9 @@ namespace Clawsemble
                            InputTokens[ptr].Type != TokenType.Empty && InputTokens[ptr].Type != TokenType.Comment) {
                     throw new CodeError(CodeErrorType.ExpectedHeader, "Expected initial header!", InputTokens[ptr],
                         GetFilename(InputTokens[ptr].File));
-                } else if (InputTokens[ptr].Type == TokenType.String) {
-                    if (string.IsNullOrEmpty(InputTokens[ptr].Content))
-                        throw new CodeError(CodeErrorType.ArgumentInvalid, "String can't be empty!", InputTokens[ptr],
-                            GetFilename(InputTokens[ptr].File));
-
-                    int constid = RegisterConstant(InputTokens[ptr].Content);
-                    if (constid == -2)
-                        throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
-                            InputTokens[ptr], GetFilename(InputTokens[ptr].File));
-                    
-                    // pass the returned value to next pass
-                    tokBuf.Add(new Token() { Type = TokenType.Number, Content = constid.ToString(),
-                        Line = InputTokens[ptr].Line, File = InputTokens[ptr].File, Position = InputTokens[ptr].Position
-                    });
                 } else if (InputTokens[ptr].Type == TokenType.Word || InputTokens[ptr].Type == TokenType.Number ||
-                           InputTokens[ptr].Type == TokenType.Seperator || InputTokens[ptr].Type == TokenType.Break) {
+                           InputTokens[ptr].Type == TokenType.Seperator || InputTokens[ptr].Type == TokenType.Break ||
+                           InputTokens[ptr].Type == TokenType.String) {
 
                     // Prevent double breaks and breaks at the beginning of the buffer
                     if (InputTokens[ptr].Type == TokenType.Break) {
@@ -425,50 +399,157 @@ namespace Clawsemble
                         InputTokens[ptr], GetFilename(InputTokens[ptr].File));
             }
 
+            NamedReference currRef = new NamedReference(ReferenceType.Symbol);
+            Symbol currSym = new Symbol();
+            Instruction currInstr = new Instruction();
+
             for (ptr = 0; ptr < tokBuf.Count; ptr++) {
-                
+                if (tokBuf[ptr].Type == TokenType.CompilerDirective) {
+                    if (string.IsNullOrWhiteSpace(tokBuf[ptr].Content))
+                        throw new CodeError(CodeErrorType.DirectiveInvalid, "Empty compiler directive!", tokBuf[ptr],
+                            GetFilename(tokBuf[ptr].File));
+                    string directive = tokBuf[ptr].Content.Trim().ToLower();
+
+                    if (directive == "lbl" || directive == "label") {
+                        if (!IsBeforeEOF(ptr, tokBuf.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, tokBuf[tokBuf.Count - 1],
+                                GetFilename(tokBuf[tokBuf.Count - 1].File));
+                        if (tokBuf[++ptr].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        if (string.IsNullOrEmpty(tokBuf[ptr].Content))
+                            throw new CodeError(CodeErrorType.WordInvalid, "Label name can't be empty!", tokBuf[ptr],
+                                GetFilename(tokBuf[ptr].File));
+                        string name = tokBuf[ptr].Content.Trim();
+                        if (IsNameAvailable(name)) // is the label name already used
+                            throw new CodeError(CodeErrorType.WordCollision,
+                                string.Format("Name '{0}' already in use!", name),
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        currInstr.Label = name;
+                    } else if (directive == "sym" || directive == "symbol") {
+                        if (!string.IsNullOrEmpty(currRef.Name)) {
+                            // save the last symbol
+                            currRef.Value = (byte)Symbols.Count;
+                            Symbols.Add(currSym);
+                            References.Add(currRef);
+                        }
+                        // collect the name and optional id of the symbol
+                        if (!IsBeforeEOF(ptr, tokBuf.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF,
+                                tokBuf[tokBuf.Count - 1],
+                                GetFilename(tokBuf[tokBuf.Count - 1].File));
+                        if (tokBuf[++ptr].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        string name;
+                        byte id = 0;
+                        bool fixid = false;
+
+                        if (string.IsNullOrWhiteSpace(tokBuf[ptr].Content))
+                            throw new CodeError(CodeErrorType.WordInvalid, "Symbol name can't be empty!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        name = tokBuf[ptr].Content.Trim();
+
+                        // does the symbol already exist?
+                        if (!IsNameAvailable(name))
+                            throw new CodeError(CodeErrorType.WordCollision,
+                                string.Format("Name '{0}' already in use!", name),
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        // check for fixid
+                        if (IsBeforeEOF(ptr, tokBuf.Count, 2)) {
+                            // now we want to check if we got an optional fixed function id
+                            if (tokBuf[ptr + 1].Type == TokenType.Seperator) {
+                                if (tokBuf[++ptr].Type != TokenType.Number)
+                                    throw new CodeError(CodeErrorType.ExpectedNumber, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                                // we got a fixed id
+                                if (!byte.TryParse(tokBuf[ptr].Content, out id))
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                                fixid = true;
+                            } else if (tokBuf[ptr + 1].Type != TokenType.Break) {
+                                throw new CodeError(CodeErrorType.ExpectedBreak, tokBuf[ptr + 1], GetFilename(tokBuf[ptr + 1].File));
+                            } else
+                                continue;
+                        }
+
+                        // catch fixid collisions
+                        if (fixid) {
+                            if (id > 254)
+                                throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
+                                    tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                            string collName;
+                            if (SymbolIdExists(id, out collName)) {
+                                if (string.IsNullOrEmpty(collName))
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                        string.Format("Fixed slot {0} already in use by another fixed symbol!", fixid),
+                                        tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                                else
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                        string.Format("Fixed slot {0} already in use by fixed symbol ({1})!", fixid, collName),
+                                        tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                            }
+                        }
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, tokBuf.Count)) {
+                            if (tokBuf[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        }
+
+                        // make space for the new symbol and save the information
+                        if (fixid)
+                            currSym = new Symbol(id);
+                        else
+                            currSym = new Symbol();
+                        currRef = new NamedReference(name, ReferenceType.Symbol);
+                    } else
+                        throw new CodeError(CodeErrorType.DirectiveUnknown, "Unknown compiler directive!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                } else if (tokBuf[ptr].Type == TokenType.String) {
+                    if (string.IsNullOrEmpty(tokBuf[ptr].Content))
+                        throw new CodeError(CodeErrorType.ArgumentInvalid, "String can't be empty!", tokBuf[ptr],
+                            GetFilename(tokBuf[ptr].File));
+
+                    int constid = RegisterConstant(tokBuf[ptr].Content);
+                    if (constid == -2)
+                        throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                    
+                    if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) // no instruction encountered yet
+                        throw new CodeError(CodeErrorType.UnexpectedToken, "String without previous instruction!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                } else if (tokBuf[ptr].Type == TokenType.Word) {
+                    if (string.IsNullOrEmpty(currRef.Name)) // no symbol encountered yet
+                        throw new CodeError(CodeErrorType.UnexpectedToken, "Word without previous symbol!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                    if (string.IsNullOrWhiteSpace(tokBuf[ptr].Content))
+                        throw new CodeError(CodeErrorType.WordInvalid, "Empty word!",
+                            tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                    string name = tokBuf[ptr].Content.Trim();
+
+                    if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) { // this is an instruction
+                        InstructionSignature sig;
+
+                        if (!FindSignature(name, out sig))
+                            throw new CodeError(CodeErrorType.InstructionUnknown,
+                                string.Format("The instruction '{0}' is not known!", name),
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        currInstr.Signature = sig;
+                    } else { // this is an argument
+                        NamedReference refr;
+
+                        if (FindReference(name, out refr)) {
+                            currInstr.Arguments.Add(new ArgumentToken(refr.Value, refr.Type));
+                        } else // no reference found, just save it for later
+                            currInstr.Arguments.Add(new ArgumentToken(name));
+                    }
+                } else if (tokBuf[ptr].Type == TokenType.Break) {
+                    // Finish instruction
+
+                }
             }
         }
 
         /*
          if (directive == "sym" || directive == "symbol") {
-                        if (!IsBeforeEOF(Pointer, Tokens.Count))
-                            throw new CodeError(CodeErrorType.UnexpectedEOF,
-                                Tokens[Tokens.Count - 1],
-                                GetFilename(Tokens[Tokens.Count - 1].File));
-                        if (Tokens[++Pointer].Type != TokenType.Word)
-                            throw new CodeError(CodeErrorType.ExpectedWord, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-
-                        string symname;
-                        byte symid = 0;
-                        bool fixid = false;
-
-                        if (string.IsNullOrWhiteSpace(Tokens[Pointer].Content))
-                            throw new CodeError(CodeErrorType.WordInvalid, "Symbol name can't be empty!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                        symname = Tokens[Pointer].Content.Trim();
-
-                        // does the symbol already exist?
-                        if (SymbolExists(symname, sym))
-                            throw new CodeError(CodeErrorType.WordCollision, "Symbol already defined earlier!", Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-
-                        if (IsBeforeEOF(Pointer, Tokens.Count, 2)) {
-                            // now we want to check if we got an optional fixed function id
-                            if (Tokens[Pointer + 1].Type == TokenType.Seperator) {
-                                if (Tokens[++Pointer].Type != TokenType.Number)
-                                    throw new CodeError(CodeErrorType.ExpectedNumber, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                                // we got a fixed id
-                                if (!byte.TryParse(Tokens[Pointer].Content, out symid))
-                                    throw new CodeError(CodeErrorType.ArgumentInvalid, Tokens[Pointer], GetFilename(Tokens[Pointer].File));
-                                fixid = true;
-                            } else if (Tokens[Pointer + 1].Type != TokenType.Break) {
-                                throw new CodeError(CodeErrorType.ExpectedBreak, Tokens[Pointer + 1], GetFilename(Tokens[Pointer + 1].File));
-                            } else
-                                continue;
-                        }
-
-                        // If there already is a symbol, save it
-                        if (!string.IsNullOrWhiteSpace(sym.Name))
-                            Symbols.Add(sym);
 
                         // catch fixid collisions
                         if (fixid) {
@@ -511,34 +592,7 @@ namespace Clawsemble
                 }
            */
 
-        private bool SymbolExists(string Name, Symbol CurrentSymbol)
-        {
-            if (!string.IsNullOrWhiteSpace(CurrentSymbol.Name)) {
-                if (Name == CurrentSymbol.Name)
-                    return true;
-            }
-
-            foreach (Symbol sym in Symbols) {
-                if (sym.Name == Name)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private bool SymbolIndexExists(byte Index, Symbol CurrentSymbol)
-        {
-            if (CurrentSymbol.Index == Index && !string.IsNullOrWhiteSpace(CurrentSymbol.Name))
-                return true;
-
-            foreach (Symbol sym in Symbols) {
-                if (sym.Index == Index)
-                    return true;
-            }
-
-            return false;
-        }
-
+        /*
         private void DoInstruction(InstructionSignature Instruction, ref int Pointer, List<byte> Bytes)
         {
             int argnum = 0;
@@ -589,10 +643,24 @@ namespace Clawsemble
                     InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
             }
         }
+    */
 
         private bool IsBeforeEOF(int Pointer, int AvlLength, int ReqLength = 1)
         {
             return (bool)(Pointer + ReqLength < AvlLength);
+        }
+
+        private bool SymbolIdExists(byte Id, out string Name)
+        {
+            foreach (NamedReference refr in References) {
+                if (refr.Type == ReferenceType.Symbol && refr.Value == Id) {
+                    Name = refr.Name;
+                    return true;
+                }
+            }
+
+            Name = null;
+            return false;
         }
 
         private bool IsNameAvailable(string Name, bool CaseSensitive = true)
@@ -677,19 +745,19 @@ namespace Clawsemble
         {
             if (Constant.Length < 1)
                 return -1;
-            if (ConstantData.Contains(Constant)) {
+            if (Constants.Contains(Constant)) {
                 int ptr = 0;
-                foreach (byte[] entry in ConstantData) {
+                foreach (byte[] entry in Constants) {
                     if (entry == Constant)
                         return ptr;
                     ptr++;
                 }
                 return -1; // just to make the compiler happy
             } else {
-                if (ConstantData.Count >= 255)
+                if (Constants.Count >= 255)
                     return -2;
-                ConstantData.Add(Constant);
-                return ConstantData.Count - 1;
+                Constants.Add(Constant);
+                return Constants.Count - 1;
             }
         }
 

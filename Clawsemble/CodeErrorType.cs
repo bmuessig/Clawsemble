@@ -7,6 +7,7 @@ namespace Clawsemble
         UnknownError,
         DirectiveInvalid,
         DirectiveUnknown,
+        InstructionUnknown,
         TokenError,
         IntentionalError,
         DivisionByZero,

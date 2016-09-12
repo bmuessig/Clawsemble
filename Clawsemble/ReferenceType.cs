@@ -5,8 +5,9 @@ namespace Clawsemble
     public enum ReferenceType
     {
         Symbol,
-        Label,
-        Array
+        Data,
+        Values,
+        String
     }
 }
 

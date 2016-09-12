@@ -11,7 +11,7 @@ namespace Clawsemble
         public List<string> Files;
         public Dictionary<string, Constant> Defines;
         public Dictionary<string, Constant> PreDefines;
-        public InstructionSignature[] ValidInstructions;
+        public List<InstructionSignature> ValidInstructions;
 
         public Preprocessor()
         {

@@ -56,11 +56,11 @@
     <Compile Include="Instruction.cs" />
     <Compile Include="Version.cs" />
     <Compile Include="MetaHeader.cs" />
-    <Compile Include="CompilerToken.cs" />
-    <Compile Include="CompilerTokenType.cs" />
     <Compile Include="Precompiler.cs" />
     <Compile Include="NamedReference.cs" />
     <Compile Include="ReferenceType.cs" />
+    <Compile Include="ArgumentTokenType.cs" />
+    <Compile Include="ArgumentToken.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

@@ -3,34 +3,37 @@ using System.Collections.Generic;
 
 namespace Clawsemble
 {
-    public struct Symbol
+    public class Symbol
     {
         // Meta
-        public string Name;
-        public byte Index;
-        public bool IsIndexFixed;
-        public bool IsIndexSet;
+        public byte Index { get; private set; }
+        public bool IsIndexFixed { get; private set; }
+        public bool IsIndexSet { get; private set; }
 
         // Data
         public List<Instruction> Instructions;
 
         //.ctors
-        public Symbol(string Name)
+        public Symbol()
         {
-            this.Name = Name;
             this.Index = 0;
             this.IsIndexFixed = false;
             this.IsIndexSet = false;
             this.Instructions = new List<Instruction>();
         }
 
-        public Symbol(string Name, byte Index)
+        public Symbol(byte Index)
         {
-            this.Name = Name;
             this.Index = Index;
             this.IsIndexFixed = true;
             this.IsIndexSet = true;
             this.Instructions = new List<Instruction>();
+        }
+
+        public void SetIndex(byte Index)
+        {
+            IsIndexSet = true;
+            this.Index = Index;
         }
 
         // Compile current symbol
