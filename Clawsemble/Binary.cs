@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Clawsemble
 {
     public class Binary
     {
-        BinaryType Type;
-        MetaHeader Meta;
-        Dictionary<byte, string> Slots;
-        Dictionary<byte, byte[]> Constants;
-        Dictionary<byte, byte[]> Symbols;
+        public BinaryType Type;
+        public MetaHeader Meta;
+        public Dictionary<byte, string> Slots;
+        public Dictionary<byte, byte[]> Constants;
+        public Dictionary<byte, byte[]> Symbols;
 
         public Binary()
         {
@@ -17,7 +18,17 @@ namespace Clawsemble
 
         public byte[] Bake()
         {
-            return null;
+            var memst = new MemoryStream();
+            this.Bake(memst);
+            byte[] bytes = memst.ToArray();
+            memst.Close();
+
+            return bytes;
+        }
+
+        public void Bake(Stream Stream)
+        {
+            
         }
     }
 }
