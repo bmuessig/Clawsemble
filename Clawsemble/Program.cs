@@ -46,7 +46,7 @@ namespace Clawsemble
             Console.Write("Compiling...");
             try {
                 var binary = comp.Compile();
-                //File.WriteAllBytes(outfile, binary.Bake());
+                File.WriteAllBytes(outfile, binary.Bake());
             } catch (CodeError error) {
                 Console.WriteLine(error.Message);
                 return;

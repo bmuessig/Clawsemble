@@ -114,6 +114,12 @@ namespace Clawsemble
                         } else
                             throw new CodeError(CodeErrorType.ConstantRange, "Only 16, 32 and 64 bits are supported!",
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else if (!foundHeader) {
                         throw new CodeError(CodeErrorType.ExpectedHeader, "Expected executable or library header!", InputTokens[ptr],
                             GetFilename(InputTokens[ptr].File));
@@ -240,6 +246,7 @@ namespace Clawsemble
 
                         // add the slot and check whether the module is optional or not
                         Slots.Add(slot, new ModuleSlot(module, (directive == "omd" || directive == "optmodule")));
+
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Break)
@@ -327,7 +334,39 @@ namespace Clawsemble
                         } else if (directive == "descr" || directive == "description") {
                             Header.Description = content;
                         }
-                    } else if (directive == "ver" || directive == "version") {
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
+                    } else if (directive == "minvstack" || directive == "mincstack" || directive == "minpool") {
+                        if (!IsBeforeEOF(ptr, InputTokens.Count))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
+                                GetFilename(InputTokens[InputTokens.Count - 1].File));
+                        if (InputTokens[++ptr].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        byte value;
+                        if (!byte.TryParse(InputTokens[ptr].Content, out value))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid byte number!",
+                                InputTokens[ptr],
+                                GetFilename(InputTokens[ptr].File));
+
+                        // write the data
+                        if (directive == "minvstack") {
+                            Header.MinVarstackSize = value;
+                        } else if (directive == "mincstack") {
+                            Header.MinCallstackSize = value;
+                        } else if (directive == "minpool") {
+                            Header.MinPoolSize = value;
+                        }
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
+                    } else if (directive == "ver" || directive == "version" || directive == "minrt" || directive == "minruntime") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
@@ -363,11 +402,17 @@ namespace Clawsemble
                                         GetFilename(InputTokens[ptr].File));
                             }
                         }
-
+                            
                         // write the data
-                        Header.Version.Major = major;
-                        Header.Version.Minor = minor;
-                        Header.Version.Revision = revision;
+                        if (directive == "version" || directive == "ver") {
+                            Header.Version.Major = major;
+                            Header.Version.Minor = minor;
+                            Header.Version.Revision = revision;
+                        } else if (directive == "minrt" || directive == "minruntime") {
+                            Header.MinRuntimeVersion.Major = major;
+                            Header.MinRuntimeVersion.Minor = minor;
+                            Header.MinRuntimeVersion.Revision = revision;
+                        }
 
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {

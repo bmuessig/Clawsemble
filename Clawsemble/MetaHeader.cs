@@ -10,6 +10,11 @@ namespace Clawsemble
         public string Copyright;
         public Version Version;
 
+        public Version MinRuntimeVersion;
+        public byte MinVarstackSize;
+        public byte MinCallstackSize;
+        public byte MinPoolSize;
+
         public MetaHeader()
         {
             Title = "";
