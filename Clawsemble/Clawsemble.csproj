@@ -62,6 +62,8 @@
     <Compile Include="ArgumentToken.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="Binary.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="LogPriority.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

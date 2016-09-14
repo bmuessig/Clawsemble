@@ -259,8 +259,17 @@ namespace Clawsemble
                     Line = Line,
                     File = 0
                 });
+
+                if (Logger.Priority == LogPriority.Debug)
+                    Logger.Debug(string.Format("Adding token (Type: {0}, Content: '{1}', Position: {2}, Line: {3})",
+                        Type.ToString(), content, Position, Line));
             } else if (Type != TokenType.Empty) {
                 Tokens.Add(new Token() { Type = Type, Position = Position, Line = Line, File = 0 });
+
+                if (Logger.Priority == LogPriority.Debug)
+                    Logger.Debug(string.Format("Adding token (Type: {0}, Position: {1}, Line: {2})",
+                        Type.ToString(), Position, Line));
+
                 if (Type == TokenType.Break) {
                     Position = 1;
                     Line++;
