@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 
 namespace Clawsemble
 {
@@ -16,7 +17,7 @@ namespace Clawsemble
             if (Priority > LogPriority.Error)
                 return;
             if (AppendLine)
-                Console.WriteLine(Message);
+                Console.WriteLine(Indent(Message));
             else
                 Console.WriteLine("Error: {0}", Message);
         }
@@ -26,7 +27,7 @@ namespace Clawsemble
             if (Priority > LogPriority.Warning)
                 return;
             if (AppendLine)
-                Console.WriteLine(Message);
+                Console.WriteLine(Indent(Message));
             else
                 Console.WriteLine("Warning: {0}", Message);
         }
@@ -36,9 +37,8 @@ namespace Clawsemble
             if (Priority > LogPriority.Information)
                 return;
 
-            // this looks stupid, but is just there for easier future expandability
             if (AppendLine)
-                Console.WriteLine(Message);
+                Console.WriteLine(Indent(Message));
             else
                 Console.WriteLine("{0}", Message);
         }
@@ -48,9 +48,8 @@ namespace Clawsemble
             if (Priority > LogPriority.ExtendedInformation)
                 return;
 
-            // this looks stupid, but is just there for easier future expandability
             if (AppendLine)
-                Console.WriteLine(Message);
+                Console.WriteLine(Indent(Message));
             else
                 Console.WriteLine("{0}", Message);
         }
@@ -60,9 +59,25 @@ namespace Clawsemble
             if (Priority > LogPriority.Debug)
                 return;
             if (AppendLine)
-                Console.WriteLine(Message);
+                Console.WriteLine(Indent(Message));
             else
                 Console.WriteLine("Debug: {0}", Message);
+        }
+
+        private static string Indent(string Message)
+        {
+            string[] lines = Message.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+            var sb = new StringBuilder();
+
+            int linecounter = 0;
+            foreach (string line in lines) {
+                sb.AppendFormat("  {0}", line);
+                if (linecounter + 1 < lines.Length)
+                    sb.AppendLine();
+                linecounter++;
+            }
+
+            return sb.ToString();
         }
     }
 }

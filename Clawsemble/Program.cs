@@ -35,37 +35,49 @@ namespace Clawsemble
             Logger.Priority = loglevel;
 
             var preproc = new Preprocessor();
-            Logger.ExtInfo("Preprocessing...");
+            Logger.ExtInfo("Preprocessing input...");
             try {
                 preproc.DoFile(infile);
             } catch (CodeError error) {
-                Logger.Error("Preprocessing failed:");
+                Logger.Error("Preprocessing failed!");
                 Logger.Error(error.Message, true);
                 return;
             }
-            Logger.ExtInfo(" done!", true);
+            Logger.ExtInfo("done!", true);
 
             var comp = new Compiler();
-            Logger.ExtInfo("Precompiling...");
+            Logger.ExtInfo("Precompiling tokens...");
             try {
                 comp.Precompile(preproc.Tokens, preproc.Files);
             } catch (CodeError error) {
-                Logger.Error("Precompiling failed:");
+                Logger.Error("Precompiling failed!");
                 Logger.Error(error.Message, true);
                 return;
             }
-            Logger.ExtInfo(" done!", true);
+            Logger.ExtInfo("done!", true);
 
-            Logger.ExtInfo("Compiling...");
+            Binary binary;
+            Logger.ExtInfo("Compiling instructions...");
             try {
-                var binary = comp.Compile();
+                binary = comp.Compile();
+            } catch (CodeError error) {
+                Logger.Error("Compiling failed!");
+                Logger.Error(error.Message, true);
+                return;
+            }
+            Logger.ExtInfo("done!", true);
+
+            Logger.ExtInfo("Baking executable...");
+            try {
                 File.WriteAllBytes(outfile, binary.Bake());
             } catch (CodeError error) {
-                Logger.Error("Compiling failed:");
+                Logger.Error("Banking failed!");
                 Logger.Error(error.Message, true);
                 return;
             }
-            Logger.ExtInfo(" done!", true);
+            Logger.ExtInfo("done!", true);
+
+            Logger.ExtInfo("All operations successfully completed :)");
         }
     }
 }
