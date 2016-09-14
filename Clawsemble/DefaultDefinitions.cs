@@ -16,7 +16,8 @@ namespace Clawsemble
             defs.Add("ARGTYPE_NUMBER", new Constant("Number"));
             defs.Add("ARGTYPE_LABEL", new Constant("Label"));
             defs.Add("ARGTYPE_BYTE", new Constant("Byte"));
-            defs.Add("ARGTYPE_SHORTLABEL", new Constant("ShortLabel"));
+            defs.Add("ARGTYPE_SHORTLABELFW", new Constant("ShortLabelFW"));
+            defs.Add("ARGTYPE_SHORTLABELBW", new Constant("ShortLabelBW"));
             defs.Add("ARGTYPE_DATA", new Constant("Data"));
             defs.Add("ARGTYPE_VALUES", new Constant("Values"));
             defs.Add("ARGTYPE_STRING", new Constant("String"));

@@ -121,7 +121,7 @@ namespace Clawsemble
             this.Filename = Filename;
         }
 
-        public CodeError(CodeErrorType ErrorType, uint Position, string Details, uint Line, string Filename)
+        public CodeError(CodeErrorType ErrorType, string Details, uint Position, uint Line, string Filename)
         {
             this.ErrorType = ErrorType;
             this.Details = Details;

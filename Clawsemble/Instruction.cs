@@ -24,6 +24,26 @@ namespace Clawsemble
             this.File = File;
         }
 
+        public byte GetSize(byte BytesPerLong)
+        {
+            byte size = 1; // covers the instruction itelf already
+
+            foreach (InstructionArgumentType arg in Signature.Arguments) {
+                switch (arg) {
+                // let's just have all the other values here
+                case InstructionArgumentType.Number:
+                case InstructionArgumentType.Label:
+                    size += BytesPerLong;
+                    break;
+                default: // default covers all byte values
+                    size++;
+                    break;
+                }
+            }
+
+            return size;
+        }
+
         public byte[] Compile(BinaryType Flags)
         {
             return null;

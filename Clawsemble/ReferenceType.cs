@@ -7,7 +7,8 @@ namespace Clawsemble
         Symbol,
         Data,
         Values,
-        String
+        String,
+        Label
     }
 }
 

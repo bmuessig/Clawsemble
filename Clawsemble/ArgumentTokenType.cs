@@ -4,9 +4,11 @@ namespace Clawsemble
 {
     public enum ArgumentTokenType
     {
-        Value,
-        ReferenceStr,
-        ReferenceNum
+        ByteValue,
+        NumberValue,
+        ReferenceString,
+        ReferenceNumber,
+        ReferenceByte
     }
 }
 

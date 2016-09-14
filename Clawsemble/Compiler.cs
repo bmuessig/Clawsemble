@@ -144,6 +144,7 @@ namespace Clawsemble
                                 GetFilename(InputTokens[ptr].File));
 
                         int constid = -1;
+                        ReferenceType type = ReferenceType.Data;
 
                         if (directive == "str" || directive == "string") {
                             if (InputTokens[++ptr].Type != TokenType.Seperator)
@@ -155,6 +156,7 @@ namespace Clawsemble
                                     GetFilename(InputTokens[ptr].File));
                             
                             constid = RegisterConstant(InputTokens[ptr].Content);
+                            type = ReferenceType.String;
                         } else if (directive == "data") {
                             var data = new List<byte>();
 
@@ -174,6 +176,7 @@ namespace Clawsemble
                             }
 
                             constid = RegisterConstant(data.ToArray());
+                            type = ReferenceType.Data;
                         } else if (directive == "vals" || directive == "values") {
                             var data = new List<byte>();
 
@@ -196,6 +199,7 @@ namespace Clawsemble
                             }
 
                             constid = RegisterConstant(data.ToArray());
+                            type = ReferenceType.Values;
                         }
 
                         // check constid for errors
@@ -206,6 +210,9 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
+
+                        // add the reference
+                        References.Add(new NamedReference(name, type, (byte)constid));
 
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
@@ -682,7 +689,108 @@ namespace Clawsemble
             if (!IsPrecompiled)
                 throw new InvalidOperationException("You can't compile until you ran the precompiler!");
 
+            // calculate bytes per long
+            byte numbytes = 0;
+            BinaryType bits = BinaryType & BinaryType.Bits;
+
+            // Determine bits for the long type
+            switch (bits) {
+            case BinaryType.Bits8:
+                numbytes = 1;
+                break;
+            case BinaryType.Bits16:
+                numbytes = 2;
+                break;
+            case BinaryType.Bits32:
+                numbytes = 4;
+                break;
+            case BinaryType.Bits64:
+                numbytes = 8;
+                break;
+            }
+
+            // first resolve anything but the labels
+            /*         foreach (Symbol sym in Symbols) {
+                foreach (Instruction instr in sym.Instructions) {
+                    foreach (ArgumentToken arg in instr.Arguments) {
+                        if (arg.Type == ArgumentTokenType.ReferenceStr) {
+                            // first check if we can resolve it from the reference table
+                            NamedReference refr;
+                            if (FindReference(arg.String, out refr))
+                                arg.Set(refr.Value, refr.Type);
+                        }
+                    }
+                }
+            }*/
+
+            // really all the tokens remaining now MUST be labels, if they aren't, the compilation will be aborted
+            foreach (Symbol sym in Symbols) {
+                for (int insti = 0; insti < sym.Instructions.Count; insti++) {
+                    Instruction instr = sym.Instructions[insti];
+
+                    for (byte argi = 0; argi < instr.Arguments.Count; argi++) {
+                        ArgumentToken arg = instr.Arguments[argi];
+
+                        if (arg.Type == ArgumentTokenType.ReferenceString) {
+                            // first check if we can resolve it from the reference table
+                            NamedReference refr;
+                            if (FindReference(arg.String, out refr)) {
+                                arg.Set(refr.Value, refr.Type);
+                                continue;
+                            }
+
+                            // now check if it's a label
+                            int lblid = FindLabel(arg.String, sym);
+                            if (lblid < 0) // check if the label was found
+                                throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                    string.Format("Can't resolve the reference to '{0}'!", arg.String),
+                                    arg.Position, arg.Line, GetFilename(arg.File));
+
+                            // Little drawing of how the jump algorithm is going to work:
+                            /* *
+                             * ...
+                             * dp
+                             *  <-------------------------------------------------------------------------+ - size(ld 1)
+                             * ld 1 (lbl1)                                                                | - size(add)
+                             * add                                                                        | - size(jp lbl1)
+                             * jp lbl1   /// we are at the end of the instruction and need to go to the begin of ld 1
+                             * --------------------------------------------^ 
+                             * subc 5
+                             * ...
+                             * */
+
+                            // offset to the token we want to jump to the beginning of
+                            int tokoffset = lblid - insti;
+                            int binoffset = 0;
+
+                            if (tokoffset >= 0) {
+                                // we count to the current token by subtracting from it
+                                for (; tokoffset >= 0; tokoffset--)
+                                    binoffset += sym.Instructions[insti + tokoffset].GetSize(numbytes);
+                            } else { // tokoffset < 0
+                                // we count to the current token by adding to it
+                                for (; tokoffset <= 0; tokoffset++)
+                                    binoffset -= sym.Instructions[insti + tokoffset].GetSize(numbytes);
+                            }
+
+                            // now lets save the binary offset as our new argument
+                            arg.Set(tokoffset, ReferenceType.Label);
+                        }
+                    }
+                }
+            }
+
             return new Binary();
+        }
+
+        private int FindLabel(string Name, Symbol Symbol)
+        {
+            for (int i = 0; i < Symbol.Instructions.Count; i++) {
+                if (Symbol.Instructions[i].Label == Name)
+                    return i;
+            }
+
+            return -1;
         }
 
         private bool IsBeforeEOF(int Pointer, int AvlLength, int ReqLength = 1)
