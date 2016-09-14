@@ -30,6 +30,7 @@ namespace Clawsemble
         UnexpectedToken,
         UnexpectedOperator,
         UnexpectedDirective,
+        UnexpectedBreak,
         ExpressionEmpty,
         ExpressionInvalid,
         ConstantInvalid,

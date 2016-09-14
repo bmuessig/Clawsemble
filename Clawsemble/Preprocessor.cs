@@ -93,13 +93,13 @@ namespace Clawsemble
                         }
 
                         if (!IsBeforeEOF(ptr, InputTokens.Count))
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[ptr - 1].Line, GetFilename(File));
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1].Line, GetFilename(File));
 
                         if (InputTokens[++ptr].Type == TokenType.ParanthesisOpen) {
                             Constant eval;
                             bool result;
                             try {
-                                eval = EvaluateExpression(ref ptr, InputTokens);
+                                eval = EvaluateExpression(ref ptr, InputTokens, Arguments);
                             } catch (CodeError error) {
                                 error.Filename = GetFilename(File);
                                 throw error;
@@ -152,7 +152,7 @@ namespace Clawsemble
 
                         if (InputTokens[++ptr].Type == TokenType.Word) {
                             if (!string.IsNullOrEmpty(InputTokens[ptr].Content)) {
-                                if (DefineExists(InputTokens[ptr].Content.Trim())) { // the key exists
+                                if (DefineExists(InputTokens[ptr].Content.Trim(), Arguments)) { // the key exists
                                     if (directive == "ifdef") { // key exists AND we have an ifdef = success
                                         ifStack.Push(true); // add that if is solved
                                     } else if (directive == "ifndef") { // key exists AND we have an ifndef = no success
@@ -201,6 +201,12 @@ namespace Clawsemble
                                 throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", InputTokens[ptr]);
                         } else
                             throw new CodeError(CodeErrorType.ExpectedWord, InputTokens[ptr]);
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else if (directive == "else") {
                         if (ifStack.Count == 0)
                             throw new CodeError(CodeErrorType.IfMissmatched, "No preceeding opening if!", InputTokens[ptr], GetFilename(File));
@@ -214,10 +220,22 @@ namespace Clawsemble
                             continue;
                         }
                         ifStack.Change(true); // we assume nothing comes after the true block so we just jump into it
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else if (directive == "endif") {
                         if (ifStack.Count == 0)
                             throw new CodeError(CodeErrorType.IfMissmatched, "Too many closing if's!", InputTokens[ptr], GetFilename(File));
                         ifStack.Pop(); // remove one if from the stack
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else if (directive == "inc" || directive == "include") {
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[ptr + 1].Type == TokenType.String) {
@@ -225,9 +243,98 @@ namespace Clawsemble
                             } else
                                 throw new CodeError(CodeErrorType.ExpectedString, InputTokens[ptr], GetFilename(File));
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[ptr].Line, GetFilename(File));
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1].Line, GetFilename(File));
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
+                    } else if (directive == "macro") {
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            Constant eval;
+                            string expression;
+
+                            if (InputTokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
+                                ptr++;
+                                try {
+                                    eval = EvaluateExpression(ref ptr, InputTokens, Arguments);
+                                } catch (CodeError error) {
+                                    error.Filename = GetFilename(File);
+                                    throw error;
+                                }
+                            } else if (InputTokens[ptr + 1].Type == TokenType.String || InputTokens[ptr + 1].Type == TokenType.Word) {
+                                ptr++;
+                                try {
+                                    eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
+                                } catch (CodeError error) {
+                                    error.Filename = GetFilename(File);
+                                    throw error;
+                                }
+                            } else
+                                throw new CodeError(CodeErrorType.UnexpectedToken, "Expected string, word, or expression!",
+                                    InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+
+                            if (eval.Type != ConstantType.String)
+                                throw new CodeError(CodeErrorType.ExpectedString, "Argument needs to resolve to a string!",
+                                    InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+
+                            expression = eval.String;
+                            var args = new Dictionary<string, Constant>();
+
+                            while (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                // check for optional seperator
+                                if (IsBeforeEOF(ptr, InputTokens.Count, 2)) {
+                                    if (InputTokens[ptr + 1].Type == TokenType.Seperator) {
+                                        ptr++;
+                                        // Now, that there is a seperator, we require a new operator
+                                        if (InputTokens[ptr + 1].Type == TokenType.Break)
+                                            throw new CodeError(CodeErrorType.UnexpectedBreak, InputTokens[ptr + 1], GetFilename(InputTokens[ptr + 1].File));
+                                    }
+                                }
+
+                                if (InputTokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
+                                    ptr++;
+                                    try {
+                                        eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
+                                    } catch (CodeError error) {
+                                        error.Filename = GetFilename(File);
+                                        throw error;
+                                    }
+                                } else if (InputTokens[ptr + 1].Type == TokenType.Number || InputTokens[ptr + 1].Type == TokenType.Character ||
+                                           InputTokens[ptr + 1].Type == TokenType.Hexadecimal || InputTokens[ptr + 1].Type == TokenType.Word) {
+                                    ptr++;
+                                    try {
+                                        eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
+                                    } catch (CodeError error) {
+                                        error.Filename = GetFilename(File);
+                                        throw error;
+                                    }
+                                } else
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid, Tokens[ptr], GetFilename(Tokens[ptr].File));
+
+                                args.Add(string.Format("A{0}", args.Count), eval);
+
+                                if (args.Count >= 9)
+                                    break;
+                                if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                    if (InputTokens[ptr + 1].Type == TokenType.Break)
+                                        break;
+                                }
+                            }
+
+                            // check for break
+                            if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                if (InputTokens[++ptr].Type != TokenType.Break)
+                                    throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                            }
+
+                            // now evaluate the code
+                            DoString(expression, args);
+                        } else
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1].Line, GetFilename(File));
                     } else if (directive == "err" || directive == "error") {
-                        if (ptr + 1 < InputTokens.Count) {
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[ptr + 1].Type == TokenType.String) {
                                 ptr++;
                                 throw new CodeError(CodeErrorType.IntentionalError, InputTokens[ptr].Content, InputTokens[ptr].Line, GetFilename(File));
@@ -236,7 +343,7 @@ namespace Clawsemble
                                 Constant eval;
                                 ptr++;
                                 try {
-                                    eval = EvaluateExpression(ref ptr, InputTokens, 1);
+                                    eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
                                 } catch (CodeError error) {
                                     error.Filename = GetFilename(File);
                                     throw error;
@@ -251,7 +358,7 @@ namespace Clawsemble
                                 Constant eval;
                                 ptr++;
                                 try {
-                                    eval = EvaluateExpression(ref ptr, InputTokens);
+                                    eval = EvaluateExpression(ref ptr, InputTokens, Arguments);
                                 } catch (CodeError error) {
                                     error.Filename = GetFilename(File);
                                     throw error;
@@ -265,61 +372,66 @@ namespace Clawsemble
                             } else
                                 throw new CodeError(CodeErrorType.IntentionalError, InputTokens[ptr].Line, GetFilename(File));
                         } else
-                            throw new CodeError(CodeErrorType.IntentionalError, InputTokens[ptr].Line, GetFilename(File));
+                            throw new CodeError(CodeErrorType.IntentionalError, InputTokens[ptr].Line, GetFilename(File));  
                     } else if (directive == "def" || directive == "define") {
                         string key = "";
                         Constant value = new Constant(1);
 
-                        if (IsBeforeEOF(ptr, InputTokens.Count, 2)) {
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Word)
                                 throw new CodeError(CodeErrorType.ExpectedWord, InputTokens[ptr], GetFilename(File));
                             if (string.IsNullOrEmpty(InputTokens[ptr].Content))
                                 throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", InputTokens[ptr], GetFilename(File));
-                            if (IsNameReserved(InputTokens[ptr].Content.Trim()))
+                            if (IsNameReserved(InputTokens[ptr].Content.Trim(), Arguments))
                                 throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!",
                                     InputTokens[ptr], GetFilename(File));
                             key = InputTokens[ptr].Content.Trim();
 
-                            if (InputTokens[ptr + 1].Type == TokenType.String ||
-                                InputTokens[ptr + 1].Type == TokenType.Hexadecimal ||
-                                InputTokens[ptr + 1].Type == TokenType.Character ||
-                                InputTokens[ptr + 1].Type == TokenType.Number ||
-                                InputTokens[ptr + 1].Type == TokenType.Word) {
-                                ptr++;
-                                try {
-                                    value = EvaluateExpression(ref ptr, InputTokens, 1);
-                                } catch (CodeError error) {
-                                    error.Filename = GetFilename(File);
-                                    throw error;
+                            if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                                // check for optional seperator
+                                if (IsBeforeEOF(ptr, InputTokens.Count, 2)) {
+                                    if (InputTokens[ptr + 1].Type == TokenType.Seperator)
+                                        ptr++;
                                 }
-                            } else if (InputTokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
-                                ptr++;
-                                try {
-                                    value = EvaluateExpression(ref ptr, InputTokens);
-                                } catch (CodeError error) {
-                                    error.Filename = GetFilename(File);
-                                    throw error;
+
+                                if (InputTokens[ptr + 1].Type == TokenType.String ||
+                                    InputTokens[ptr + 1].Type == TokenType.Hexadecimal ||
+                                    InputTokens[ptr + 1].Type == TokenType.Character ||
+                                    InputTokens[ptr + 1].Type == TokenType.Number ||
+                                    InputTokens[ptr + 1].Type == TokenType.Word) {
+                                    ptr++;
+                                    try {
+                                        value = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
+                                    } catch (CodeError error) {
+                                        error.Filename = GetFilename(File);
+                                        throw error;
+                                    }
+                                } else if (InputTokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
+                                    ptr++;
+                                    try {
+                                        value = EvaluateExpression(ref ptr, InputTokens, Arguments);
+                                    } catch (CodeError error) {
+                                        error.Filename = GetFilename(File);
+                                        throw error;
+                                    }
                                 }
                             }
-                        } else if (IsBeforeEOF(ptr, InputTokens.Count)) {
-                            if (InputTokens[++ptr].Type != TokenType.Word)
-                                throw new CodeError(CodeErrorType.ExpectedWord, InputTokens[ptr], GetFilename(File));
-                            if (string.IsNullOrEmpty(InputTokens[ptr].Content))
-                                throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", InputTokens[ptr], GetFilename(File));
-                            if (IsNameReserved(InputTokens[ptr].Content.Trim()))
-                                throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!",
-                                    InputTokens[ptr], GetFilename(File));
-                            key = InputTokens[ptr].Content.Trim();
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[ptr].Line, GetFilename(File));
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1].Line, GetFilename(File));
 
                         Defines.Add(key, value);
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else if (directive == "undef" || directive == "undefine") {
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type == TokenType.Word) {
                                 if (string.IsNullOrEmpty(InputTokens[ptr].Content))
                                     throw new CodeError(CodeErrorType.ConstantNotFound, "Constant name is empty!", InputTokens[ptr], GetFilename(File));
-                                if (IsNameReserved(InputTokens[ptr].Content.Trim()))
+                                if (IsNameReserved(InputTokens[ptr].Content.Trim(), Arguments))
                                     throw new CodeError(CodeErrorType.WordInvalid, "Constant name cannot be used as it is reserved!",
                                         InputTokens[ptr], GetFilename(File));
                                 if (Defines.ContainsKey(InputTokens[ptr].Content.Trim()))
@@ -327,14 +439,20 @@ namespace Clawsemble
                             } else
                                 throw new CodeError(CodeErrorType.ExpectedWord, InputTokens[ptr], GetFilename(File));
                         } else
-                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[ptr].Line, GetFilename(File));
+                            throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1].Line, GetFilename(File));
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, InputTokens.Count)) {
+                            if (InputTokens[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
                     } else
                         throw new CodeError(CodeErrorType.DirectiveUnknown, InputTokens[ptr], GetFilename(File));
                 } else if (InputTokens[ptr].Type == TokenType.ParanthesisOpen) { // we got an expression, nice
                     int origi = ptr;
                     Constant eval;
                     try {
-                        eval = EvaluateExpression(ref ptr, InputTokens);
+                        eval = EvaluateExpression(ref ptr, InputTokens, Arguments);
                     } catch (CodeError error) {
                         error.Filename = GetFilename(File);
                         throw error;
@@ -362,8 +480,8 @@ namespace Clawsemble
                         Position = InputTokens[ptr].Position, Line = InputTokens[ptr].Line, File = (uint)Files.Count
                     });
                 } else if (InputTokens[ptr].Type == TokenType.Word) {
-                    if (DefineExists(InputTokens[ptr].Content)) {
-                        Constant eval = GetDefine(InputTokens[ptr].Content);
+                    if (DefineExists(InputTokens[ptr].Content, Arguments)) {
+                        Constant eval = GetDefine(InputTokens[ptr].Content, Arguments);
 
                         if (eval.Type == ConstantType.Numeric) {
                             Tokens.Add(new Token() { Type = TokenType.Number, Content = eval.Number.ToString(),
@@ -449,6 +567,11 @@ namespace Clawsemble
 
         private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens, int MaxLength = int.MaxValue)
         {
+            return EvaluateExpression(ref Pointer, Tokens, new Dictionary<string, Constant>(), MaxLength);
+        }
+
+        private Constant EvaluateExpression(ref int Pointer, List<Token> Tokens, Dictionary<string,Constant> ExtArgs, int MaxLength = int.MaxValue)
+        {
             var valstack = new Stack<Constant>();
             var opstack = new Stack<Token>();
             int startPtr = Pointer;
@@ -469,8 +592,8 @@ namespace Clawsemble
                     }
                     valstack.Push(con);
                 } else if (Tokens[Pointer].Type == TokenType.Word) {
-                    if (DefineExists(Tokens[Pointer].Content.Trim())) {
-                        Constant cvar = GetDefine(Tokens[Pointer].Content.Trim());
+                    if (DefineExists(Tokens[Pointer].Content.Trim(), ExtArgs)) {
+                        Constant cvar = GetDefine(Tokens[Pointer].Content.Trim(), ExtArgs);
                         if (cvar.Type != ConstantType.Empty)
                             valstack.Push(cvar);
                         else
@@ -710,13 +833,20 @@ namespace Clawsemble
                 return Associativity.None;
         }
 
+        private bool IsNameReserved(string Key, Dictionary<string, Constant> ExtArgs)
+        {
+            // check external arguments
+            if (ExtArgs.ContainsKey(Key))
+                return true;
+
+            return IsNameReserved(Key);
+        }
+
         private bool IsNameReserved(string Key)
         {
             // check reserved words
-            foreach (string key in PreDefines.Keys) {
-                if (key == Key)
-                    return true;
-            }
+            if (PreDefines.ContainsKey(Key))
+                return true;
 
             // check collisions with instructions
             foreach (InstructionSignature instr in ValidInstructions) {
@@ -733,9 +863,21 @@ namespace Clawsemble
                 PreDefines.Add(kvp.Key, kvp.Value);
         }
 
+        private bool DefineExists(string Key, Dictionary<string,Constant> ExtArgs)
+        {
+            return (bool)(Defines.ContainsKey(Key) || PreDefines.ContainsKey(Key) || ExtArgs.ContainsKey(Key));
+        }
+
         private bool DefineExists(string Key)
         {
             return (bool)(Defines.ContainsKey(Key) || PreDefines.ContainsKey(Key));
+        }
+
+        private Constant GetDefine(string Key, Dictionary<string, Constant> ExtArgs)
+        {
+            if (ExtArgs.ContainsKey(Key))
+                return ExtArgs[Key];
+            return GetDefine(Key);
         }
 
         private Constant GetDefine(string Key)

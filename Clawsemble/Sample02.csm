@@ -2,7 +2,7 @@
 
 #define num_values 3  ; number of values is 3
 .vals values, {10, 5, 2}  ; constant short (16-bit) array with the values
-lol
+
 .sym main:0  ; main entry point, you can name it whatever you want as long as you set its id to 0
         xci values  ; create a new buffer filled with the constant "values" from above
         lc 0  ; load the sum start number 0 onto the stack
