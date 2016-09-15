@@ -1,5 +1,17 @@
 ﻿.CWX:16  ;16 bit executable, you can also use 32 and 64-bit
 
+#define my_macro {
+"
+#if (A0 < 50)
+  #error \"Below 50!\"
+#else
+  #error \"Greater or equal to 50!\"
+#endif
+"
+}
+
+; #macro my_macro 12
+
 #define num_values 3  ; number of values is 3
 .vals values, {10, 5, 2}  ; constant short (16-bit) array with the values
 

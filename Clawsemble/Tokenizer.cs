@@ -16,23 +16,26 @@ namespace Clawsemble
             var sb = new StringBuilder();
             var type = TokenType.Empty;
             uint line = 1, pos = 1;
-            bool multiline = false;
+            bool multiline = false, inEscape = false;
 
             while (!reader.EndOfStream) {
                 char chr = (char)reader.Read();
 
                 if ((type == TokenType.Comment && chr != '\r' && chr != '\n') ||
-                    (type == TokenType.String && chr != '"' && chr != '\r' && chr != '\n') ||
+                    (type == TokenType.String && (chr != '"' || inEscape)) ||
                     (type == TokenType.Character && chr != '\'' && chr != '\r' && chr != '\n' && sb.Length < 3)) {
+                    if (type == TokenType.String) {
+                        if (chr == '\\')
+                            inEscape = !inEscape;
+                        else
+                            inEscape = false;
+                    }
                     sb.Append(chr);
                 } else if (chr == '\n' || chr == '\r') {
                     if (type == TokenType.Character) {
                         sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else if (multiline) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
-                        type = TokenType.Comment;
-                        sb.Append(chr);
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else if (chr == '\r') {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
@@ -50,6 +53,7 @@ namespace Clawsemble
                     type = TokenType.Comment;
                 } else if (chr == '"') {
                     if (type == TokenType.String) {
+                        inEscape = false;
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
                     } else {
                         FinishToken(tokens, ref type, ref pos, ref line, sb);
@@ -296,6 +300,10 @@ namespace Clawsemble
                             return "\r";
                         } else if (escape == "b") {
                             return "\b";
+                        } else if (escape == @"\") {
+                            return @"\";
+                        } else if (escape == "\"") {
+                            return "\"";
                         }
                     } else if (match.Groups[2].Length > 0) {
                         byte val;

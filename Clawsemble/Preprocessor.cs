@@ -40,6 +40,8 @@ namespace Clawsemble
             var mstream = new MemoryStream();
             var writer = new StreamWriter(mstream);
             writer.Write(Code);
+            writer.Flush();
+            mstream.Position = 0;
             DoTokens(Tokenizer.Tokenize(mstream), Arguments);
         }
 
@@ -285,25 +287,23 @@ namespace Clawsemble
                             while (IsBeforeEOF(ptr, InputTokens.Count)) {
                                 // check for optional seperator
                                 if (IsBeforeEOF(ptr, InputTokens.Count, 2)) {
-                                    if (InputTokens[ptr + 1].Type == TokenType.Seperator) {
+                                    if (InputTokens[ptr].Type == TokenType.Seperator) {
                                         ptr++;
                                         // Now, that there is a seperator, we require a new operator
-                                        if (InputTokens[ptr + 1].Type == TokenType.Break)
+                                        if (InputTokens[ptr].Type == TokenType.Break)
                                             throw new CodeError(CodeErrorType.UnexpectedBreak, InputTokens[ptr + 1], GetFilename(InputTokens[ptr + 1].File));
                                     }
                                 }
 
-                                if (InputTokens[ptr + 1].Type == TokenType.ParanthesisOpen) {
-                                    ptr++;
+                                if (InputTokens[ptr].Type == TokenType.ParanthesisOpen) {
                                     try {
                                         eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
                                     } catch (CodeError error) {
                                         error.Filename = GetFilename(File);
                                         throw error;
                                     }
-                                } else if (InputTokens[ptr + 1].Type == TokenType.Number || InputTokens[ptr + 1].Type == TokenType.Character ||
-                                           InputTokens[ptr + 1].Type == TokenType.Hexadecimal || InputTokens[ptr + 1].Type == TokenType.Word) {
-                                    ptr++;
+                                } else if (InputTokens[ptr].Type == TokenType.Number || InputTokens[ptr].Type == TokenType.Character ||
+                                           InputTokens[ptr].Type == TokenType.Hexadecimal || InputTokens[ptr].Type == TokenType.Word) {
                                     try {
                                         eval = EvaluateExpression(ref ptr, InputTokens, Arguments, 1);
                                     } catch (CodeError error) {
@@ -311,7 +311,7 @@ namespace Clawsemble
                                         throw error;
                                     }
                                 } else
-                                    throw new CodeError(CodeErrorType.ArgumentInvalid, Tokens[ptr], GetFilename(Tokens[ptr].File));
+                                    throw new CodeError(CodeErrorType.ArgumentInvalid, InputTokens[ptr + 1], GetFilename(InputTokens[ptr + 1].File));
 
                                 args.Add(string.Format("A{0}", args.Count), eval);
 
