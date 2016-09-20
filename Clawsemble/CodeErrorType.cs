@@ -23,6 +23,7 @@ namespace Clawsemble
         ExpectedInstruction,
         ArgumentInvalid,
         ArgumentRange,
+        ArgumentCount,
         WordInvalid,
         WordUnknown,
         WordCollision,

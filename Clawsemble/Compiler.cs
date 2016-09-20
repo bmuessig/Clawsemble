@@ -27,11 +27,6 @@ namespace Clawsemble
         // Misc. vars
         public bool IsPrecompiled { get; private set; }
 
-        // Misc. constant values
-        private const int MaxSlotNameLength = 6;
-        private const int MaxSlots = 16;
-        private const byte MaxNativeInstrs = 0x7f;
-
         public Compiler()
         {
             Instructions = new List<InstructionSignature>();
@@ -144,7 +139,7 @@ namespace Clawsemble
                                 GetFilename(InputTokens[ptr].File));
 
                         int constid = -1;
-                        ReferenceType type = ReferenceType.Data;
+                        ReferenceType type = 0;
 
                         if (directive == "str" || directive == "string") {
                             if (InputTokens[++ptr].Type != TokenType.Seperator)
@@ -188,9 +183,14 @@ namespace Clawsemble
                                     throw new CodeError(CodeErrorType.ExpectedSeperator, InputTokens[ptr], GetFilename(InputTokens[ptr].File));    
                                 long val;
                                 if (!long.TryParse(InputTokens[ptr].Content, out val))
-                                    throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid byte value!",
+                                    throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid value!",
                                         InputTokens[ptr], GetFilename(InputTokens[ptr].File)); 
-                                data.AddRange(NumberToBytes(val));
+                                bool clip;
+                                data.AddRange(NumberToBytes(val, out clip));
+
+                                if (clip)
+                                    throw new CodeError(CodeErrorType.ConstantRange, "Constant too large for the selected target bitness!",
+                                        InputTokens[ptr], GetFilename(InputTokens[ptr].File));
 
                                 if (IsBeforeEOF(ptr, InputTokens.Count)) {
                                     if (InputTokens[ptr + 1].Type == TokenType.Break)
@@ -230,9 +230,9 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.WordInvalid, "Module name can't be empty!", InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
                         string module = InputTokens[ptr].Content.Trim().ToUpper();
-                        if (module.Length > MaxSlotNameLength)
+                        if (module.Length > GlobalConstants.MaxSlotNameLength)
                             throw new CodeError(CodeErrorType.ConstantRange,
-                                string.Format("The module indentifier can be max. {0} characters long!", MaxSlotNameLength),
+                                string.Format("The module indentifier can be max. {0} characters long!", GlobalConstants.MaxSlotNameLength),
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         if (InputTokens[++ptr].Type != TokenType.Seperator)
                             throw new CodeError(CodeErrorType.ExpectedSeperator, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
@@ -242,9 +242,9 @@ namespace Clawsemble
                         if (!byte.TryParse(InputTokens[ptr].Content, out slot))
                             throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid slot constant!", InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
-                        if (slot >= MaxSlots)
+                        if (slot > GlobalConstants.MaxSlot)
                             throw new CodeError(CodeErrorType.ConstantRange,
-                                string.Format("There are only {0} slots!", MaxSlots),
+                                string.Format("There are only {0} slots!", GlobalConstants.MaxSlot + 1),
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         if (Slots.ContainsKey(slot))
                             throw new CodeError(CodeErrorType.OperationInvalid,
@@ -285,9 +285,9 @@ namespace Clawsemble
                             throw new CodeError(CodeErrorType.ArgumentInvalid, "Invalid custom instruction code!",
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
-                        if (code <= MaxNativeInstrs)
+                        if (code <= GlobalConstants.MaxNativeInstrs)
                             throw new CodeError(CodeErrorType.ArgumentRange,
-                                string.Format("Custom instruction code outside of extended instruction range ({0}-255)!", MaxNativeInstrs + 1),
+                                string.Format("Custom instruction code outside of extended instruction range ({0}-255)!", GlobalConstants.MaxNativeInstrs + 1),
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
                         var args = new List<InstructionArgumentType>();
@@ -321,9 +321,7 @@ namespace Clawsemble
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
-                    } else if (directive == "title" || directive == "author" ||
-                               directive == "copyr" || directive == "copyright" ||
-                               directive == "descr" || directive == "description") {
+                    } else if (directive == "title" || directive == "author" || directive == "description") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count))
                             throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
@@ -332,13 +330,15 @@ namespace Clawsemble
 
                         string content = (string.IsNullOrWhiteSpace(InputTokens[ptr].Content) ? "" : InputTokens[ptr].Content);
 
+                        if (content.Length > byte.MaxValue)
+                            throw new CodeError(CodeErrorType.StackOverflow, "Metastring can't be longer than 256 characters!",
+                                InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+
                         if (directive == "title") {
                             Header.Title = content.Trim();
                         } else if (directive == "author") {
                             Header.Author = content.Trim();
-                        } else if (directive == "copyr" || directive == "copyright") {
-                            Header.Copyright = content;
-                        } else if (directive == "descr" || directive == "description") {
+                        } else if (directive == "description") {
                             Header.Description = content;
                         }
 
@@ -632,7 +632,10 @@ namespace Clawsemble
                     long value;
                     if (!long.TryParse(tokBuf[ptr].Content, out value))
                         throw new CodeError(CodeErrorType.ConstantInvalid, "The constant is invalid!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
-                    currInstr.Arguments.Add(new ArgumentToken(value, tokBuf[ptr].Position, tokBuf[ptr].Line, tokBuf[ptr].File));
+                    if (value > byte.MaxValue)
+                        currInstr.Arguments.Add(new ArgumentToken(value, tokBuf[ptr].Position, tokBuf[ptr].Line, tokBuf[ptr].File));
+                    else
+                        currInstr.Arguments.Add(new ArgumentToken((byte)value, tokBuf[ptr].Position, tokBuf[ptr].Line, tokBuf[ptr].File));
                 } else if (tokBuf[ptr].Type == TokenType.Break) {
                     // Finish instruction
                     if (!string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) {
@@ -709,21 +712,6 @@ namespace Clawsemble
                 break;
             }
 
-            // first resolve anything but the labels
-            /*         foreach (Symbol sym in Symbols) {
-                foreach (Instruction instr in sym.Instructions) {
-                    foreach (ArgumentToken arg in instr.Arguments) {
-                        if (arg.Type == ArgumentTokenType.ReferenceStr) {
-                            // first check if we can resolve it from the reference table
-                            NamedReference refr;
-                            if (FindReference(arg.String, out refr))
-                                arg.Set(refr.Value, refr.Type);
-                        }
-                    }
-                }
-            }*/
-
-            // really all the tokens remaining now MUST be labels, if they aren't, the compilation will be aborted
             foreach (Symbol sym in Symbols) {
                 for (int insti = 0; insti < sym.Instructions.Count; insti++) {
                     Instruction instr = sym.Instructions[insti];
@@ -759,6 +747,8 @@ namespace Clawsemble
                              * ...
                              * */
 
+                            // FIXME; does not work
+
                             // offset to the token we want to jump to the beginning of
                             int tokoffset = lblid - insti;
                             int binoffset = 0;
@@ -780,7 +770,126 @@ namespace Clawsemble
                 }
             }
 
-            return new Binary();
+            var binary = new Binary();
+            var symbytes = new List<byte>();
+
+            // compile and check the instructions
+            foreach (Symbol sym in Symbols) {
+                foreach (Instruction instr in sym.Instructions) {
+                    // check argument count, otherwise error out
+                    if (instr.Arguments.Count < instr.Signature.Arguments.Length) {
+                        throw new CodeError(CodeErrorType.ArgumentCount,
+                            string.Format("Too few arguments ({0}) for instruction {1} which requires {2} argument(s)!",
+                                instr.Arguments.Count, instr.Signature.Mnemonic, instr.Signature.Arguments.Length),
+                            instr.Position, instr.Line, GetFilename(instr.File));
+                    } else if (instr.Arguments.Count > instr.Signature.Arguments.Length) {
+                        throw new CodeError(CodeErrorType.ArgumentCount,
+                            string.Format("Too many arguments ({0}) for instruction {1} which requires {2} argument(s)!",
+                                instr.Arguments.Count, instr.Signature.Mnemonic, instr.Signature.Arguments.Length),
+                            instr.Position, instr.Line, GetFilename(instr.File));
+                    }
+
+                    // add instruction code to bytecode
+                    symbytes.Add(instr.Signature.Code);
+
+                    for (int argi = 0; argi < instr.Arguments.Count; argi++) {
+                        InstructionArgumentType sigarg = instr.Signature.Arguments[argi], tokarg;
+
+                        if (!ArgumentTokenToSignature(instr.Arguments[argi], out tokarg))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                string.Format("Unknown type ({0}, {1}) of argument #{2} in instruction {3}!", 
+                                    instr.Arguments[argi].Type.ToString(), instr.Arguments[argi].Target.ToString(),
+                                    argi, instr.Signature.Mnemonic),
+                                instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
+
+                        // Check if we can do type conversion
+                        if (tokarg == InstructionArgumentType.Byte && sigarg == InstructionArgumentType.Number) {
+                            tokarg = InstructionArgumentType.Number;
+                            instr.Arguments[argi].Set((long)instr.Arguments[argi].Byte);
+                        }
+
+                        // Fix backwards jumping labels and their type
+                        if (tokarg == InstructionArgumentType.ShortLabelBw || tokarg == InstructionArgumentType.ShortLabelFw)
+                            instr.Arguments[argi].Set((byte)Math.Abs(instr.Arguments[argi].Number), ReferenceType.Label);
+
+                        // Check if any of the valid argument types match
+                        if ((sigarg & tokarg) == 0 && sigarg != tokarg)
+                            throw new CodeError(CodeErrorType.ArgumentInvalid,
+                                string.Format("Type of argument #{0} ({1}), in instruction {2}, invalid. Expected argument of type {3}!",
+                                    argi, tokarg.ToString(), instr.Signature.Mnemonic, sigarg.ToString()),
+                                instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
+
+                        // write arguments to bytecode
+                        if ((sigarg & InstructionArgumentType.Byte) > 0) { // write byte
+                            symbytes.Add(instr.Arguments[argi].Byte);
+                        } else { // write number
+                            bool clip;
+                            symbytes.AddRange(NumberToBytes(instr.Arguments[argi].Number, out clip));
+
+                            if (clip)
+                                throw new CodeError(CodeErrorType.ConstantRange, "Constant too large for the selected target bitness!",
+                                    instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
+                        }
+                    }
+                }
+
+                // Add symbol to binary
+                binary.Symbols.Add(sym.Index, symbytes.ToArray());
+                // Create new symbol
+                symbytes = new List<byte>();
+            }
+
+            // Assign the final properties
+            binary.Type = BinaryType;
+            binary.Meta = Header;
+            binary.Constants = Constants;
+            binary.Slots = Slots;
+
+            return binary;
+        }
+
+        private bool ArgumentTokenToSignature(ArgumentToken Token, out InstructionArgumentType Output)
+        {
+            switch (Token.Type) {
+            case ArgumentTokenType.ByteValue:
+                Output = InstructionArgumentType.Byte;
+                return true;
+            case ArgumentTokenType.NumberValue:
+                Output = InstructionArgumentType.Number;
+                return true;
+            case ArgumentTokenType.ReferenceNumber:
+                switch (Token.Target) {
+                case ReferenceType.Label:
+                    Output = InstructionArgumentType.Label;
+                    return true;
+                }
+                break;
+            case ArgumentTokenType.ReferenceByte:
+                switch (Token.Target) {
+                case ReferenceType.Data:
+                    Output = InstructionArgumentType.Data;
+                    return true;
+                case ReferenceType.Label:
+                    if (Token.Number > 0)
+                        Output = InstructionArgumentType.ShortLabelFw;
+                    else
+                        Output = InstructionArgumentType.ShortLabelBw;
+                    return true;
+                case ReferenceType.String:
+                    Output = InstructionArgumentType.String;
+                    return true;
+                case ReferenceType.Symbol:
+                    Output = InstructionArgumentType.Symbol;
+                    return true;
+                case ReferenceType.Values:
+                    Output = InstructionArgumentType.Values;
+                    return true;
+                }
+                break;
+            }
+
+            Output = 0;
+            return false;
         }
 
         private int FindLabel(string Name, Symbol Symbol)
@@ -923,6 +1032,13 @@ namespace Clawsemble
 
         private int RegisterConstant(byte[] Constant)
         {
+            /* *
+             * Returns:
+             * >= 0: All ok
+             * -1:   Size error
+             * -2:   No more constants left
+             * */
+             
             if (Constant.Length < 1)
                 return -1;
             if (Constants.Contains(Constant)) {
@@ -941,33 +1057,27 @@ namespace Clawsemble
             }
         }
 
-        private byte[] NumberToBytes(long val)
+        private byte[] NumberToBytes(long val, out bool Clip)
         {
             BinaryType bits = BinaryType & BinaryType.Bits;
 
             switch (bits) {
             case BinaryType.Bits8:
+                Clip = (val > sbyte.MaxValue);
                 return BitConverter.GetBytes((sbyte)(val & sbyte.MaxValue));
             case BinaryType.Bits16:
+                Clip = (val > short.MaxValue);
                 return BitConverter.GetBytes((short)(val & short.MaxValue));
             case BinaryType.Bits32:
+                Clip = (val > int.MaxValue);
                 return BitConverter.GetBytes((int)(val & int.MaxValue));
             case BinaryType.Bits64:
+                Clip = (val > long.MaxValue);
                 return BitConverter.GetBytes((long)(val & long.MaxValue));
             }
 
+            Clip = false;
             return null;
-        }
-
-        private int RegisterConstant(long[] Constant)
-        {
-            var bytes = new List<byte>();
-
-            foreach (long val in Constant) {
-                bytes.AddRange(NumberToBytes(val)); 
-            }
-
-            return RegisterConstant(bytes.ToArray());
         }
 
         private int RegisterConstant(string Constant)
@@ -989,59 +1099,6 @@ namespace Clawsemble
         {
             return (bool)(((uint)val) <= 255);
         }
-
-        /*
-        private void DoInstruction(InstructionSignature Instruction, ref int Pointer, List<byte> Bytes)
-        {
-            int argnum = 0;
-            Bytes.Add(Instruction.Code);
-
-            foreach (InstructionArgumentType arg in Instruction.Arguments) {
-                if (!IsBeforeEOF(Pointer++, InputTokens.Count))
-                    throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[Pointer - 1].Line, GetFilename(InputTokens[Pointer].File));
-                if (string.IsNullOrWhiteSpace(InputTokens[Pointer].Content))
-                    throw new CodeError(CodeErrorType.ConstantInvalid, "Constant is empty!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                argnum++;
-
-                if (arg == InstructionArgumentType.Number) {
-                    if (InputTokens[Pointer].Type != TokenType.Number)
-                        throw new CodeError(CodeErrorType.ExpectedNumber, InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-
-                    long val;
-                    if (!long.TryParse(InputTokens[Pointer].Content, out val))
-                        throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                    Bytes.AddRange(BitConverter.GetBytes(val));
-
-                    continue;
-                }
-
-                if ((arg & InstructionArgumentType.Label) > 0) {
-
-                }
-
-                if ((arg & InstructionArgumentType.String) > 0) {
-
-                }
-
-                if ((arg & InstructionArgumentType.Byte) > 0) {
-                    if (InputTokens[Pointer].Type != TokenType.Number)
-                        throw new CodeError(CodeErrorType.ExpectedNumber, InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-
-                    byte val;
-                    if (!byte.TryParse(InputTokens[Pointer].Content, out val))
-                        throw new CodeError(CodeErrorType.ConstantInvalid, "Can't parse numeric constant!", InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-                    Bytes.Add(val);
-
-                    continue;
-                }
-
-                throw new CodeError(CodeErrorType.SignatureMissmatch,
-                    string.Format("The constant does not match the signature ({1}) of argument #{0} of the instruction \"{2}\"!",
-                        argnum, arg.ToString(), Instruction.Mnemonic),
-                    InputTokens[Pointer], GetFilename(InputTokens[Pointer].File));
-            }
-        }
-        */
     }
 }
 

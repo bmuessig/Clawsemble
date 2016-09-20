@@ -21,7 +21,7 @@ namespace Clawsemble
             defs.Add("ARGTYPE_DATA", new Constant("Data"));
             defs.Add("ARGTYPE_VALUES", new Constant("Values"));
             defs.Add("ARGTYPE_STRING", new Constant("String"));
-            defs.Add("ARGTYPE_FUNCTION", new Constant("Function"));
+            defs.Add("ARGTYPE_SYMBOL", new Constant("Symbol"));
             defs.Add("ARGTYPE_ARRAY", new Constant("Array"));
 
             return defs;

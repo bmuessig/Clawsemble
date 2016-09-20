@@ -64,6 +64,9 @@
     <Compile Include="Binary.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="LogPriority.cs" />
+    <Compile Include="GlobalConstants.cs" />
+    <Compile Include="BitbakeErrorType.cs" />
+    <Compile Include="BitbakeError.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

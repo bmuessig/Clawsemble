@@ -43,11 +43,6 @@ namespace Clawsemble
 
             return size;
         }
-
-        public byte[] Compile(BinaryType Flags)
-        {
-            return null;
-        }
     }
 }
 

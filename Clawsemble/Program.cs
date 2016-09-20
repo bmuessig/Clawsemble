@@ -70,11 +70,11 @@ namespace Clawsemble
             Logger.ExtInfo("Baking executable...");
             try {
                 File.WriteAllBytes(outfile, binary.Bake());
-            } catch (CodeError error) {
-                Logger.Error("Banking failed!");
+            } catch (BitbakeError error) {
+                Logger.Error("Baking failed!");
                 Logger.Error(error.Message, true);
                 return;
-            }
+            }   
             Logger.ExtInfo("done!", true);
 
             Logger.ExtInfo("All operations successfully completed :)");

@@ -18,6 +18,7 @@ namespace Clawsemble
         {
             this.Number = Value;
             this.Type = ArgumentTokenType.ByteValue;
+            this.Target = 0;
             this.Position = Position;
             this.Line = Line;
             this.File = File;
@@ -27,6 +28,7 @@ namespace Clawsemble
         {
             this.Number = Value;
             this.Type = ArgumentTokenType.NumberValue;
+            this.Target = 0;
             this.Position = Position;
             this.Line = Line;
             this.File = File;
@@ -36,6 +38,7 @@ namespace Clawsemble
         {
             this.Byte = Reference;
             this.Type = ArgumentTokenType.ReferenceByte;
+            this.Target = Target;
             this.Position = Position;
             this.Line = Line;
             this.File = File;
@@ -45,6 +48,7 @@ namespace Clawsemble
         {
             this.Number = Reference;
             this.Type = ArgumentTokenType.ReferenceNumber;
+            this.Target = Target;
             this.Position = Position;
             this.Line = Line;
             this.File = File;
@@ -54,6 +58,7 @@ namespace Clawsemble
         {
             this.String = Reference;
             this.Type = ArgumentTokenType.ReferenceString;
+            this.Target = 0;
             this.Position = Position;
             this.Line = Line;
             this.File = File;
@@ -64,6 +69,7 @@ namespace Clawsemble
             this.Number = Value;
             this.Byte = 0;
             this.String = "";
+            this.Target = 0;
             this.Type = ArgumentTokenType.NumberValue;
         }
 
@@ -72,6 +78,7 @@ namespace Clawsemble
             this.Byte = Value;
             this.Number = 0;
             this.String = "";
+            this.Target = 0;
             this.Type = ArgumentTokenType.ByteValue;
         }
 
@@ -80,6 +87,7 @@ namespace Clawsemble
             this.Byte = Reference;
             this.Number = 0;
             this.String = "";
+            this.Target = Target;
             this.Type = ArgumentTokenType.ReferenceByte;
         }
 
@@ -88,6 +96,7 @@ namespace Clawsemble
             this.Number = Reference;
             this.Byte = 0;
             this.String = "";
+            this.Target = Target;
             this.Type = ArgumentTokenType.ReferenceNumber;
         }
 
@@ -96,6 +105,7 @@ namespace Clawsemble
             this.String = Reference;
             this.Byte = 0;
             this.Number = 0;
+            this.Target = 0;
             this.Type = ArgumentTokenType.ReferenceString;
         }
 

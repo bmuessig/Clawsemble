@@ -16,7 +16,7 @@ namespace Clawsemble
             var sb = new StringBuilder();
             var type = TokenType.Empty;
             uint line = 1, pos = 1;
-            bool multiline = false, inEscape = false;
+            bool multiline = false, inEscape = false, hardBreak = false;
 
             while (!reader.EndOfStream) {
                 char chr = (char)reader.Read();
@@ -34,36 +34,38 @@ namespace Clawsemble
                 } else if (chr == '\n' || chr == '\r') {
                     if (type == TokenType.Character) {
                         sb.Append(chr);
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else if (multiline) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else if (chr == '\r') {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Break;
+                        hardBreak = true;
                     } else if (chr == '\n') {
                         if (type != TokenType.Break)
-                            FinishToken(tokens, ref type, ref pos, ref line, sb);
+                            FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Break;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        hardBreak = true;
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == ' ' || chr == '\t') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == ';') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Comment;
                 } else if (chr == '"') {
                     if (type == TokenType.String) {
                         inEscape = false;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.String;
                     }
                 } else if (chr == '\'') {
                     if (type == TokenType.Character) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Character;
                     }
                 } else if (chr == '.') {
@@ -76,144 +78,145 @@ namespace Clawsemble
                         type = TokenType.PreprocessorDirective;
                     else {
                         type = TokenType.Invalid;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '$') {
                     if (type != TokenType.Hexadecimal) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Hexadecimal;
                     } else {
                         type = TokenType.Invalid;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == ':' || chr == ',') {
                     if (type != TokenType.Seperator) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Seperator;
                     } else {
                         type = TokenType.Break;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        hardBreak = false;
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '!') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Not;
                 } else if (chr == '{') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     if (multiline) {
                         type = TokenType.Unexpected;
                         sb.Append(chr);
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else
                         multiline = true;
                 } else if (chr == '}') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     if (!multiline) {
                         type = TokenType.Unexpected;
                         sb.Append(chr);
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else
                         multiline = false;
                 } else if (chr == '(') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.ParanthesisOpen;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == ')') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.ParanthesisClose;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == '<') {
                     if (type == TokenType.LessThan) {
                         type = TokenType.BitshiftLeft;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.LessThan;
                     }
                 } else if (chr == '=') {
                     if (type == TokenType.Assign) {
                         type = TokenType.Equal;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else if (type == TokenType.Not) {
                         type = TokenType.NotEqual;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else if (type == TokenType.GreaterThan) {
                         type = TokenType.GreaterEqual;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else if (type == TokenType.LessThan) {
                         type = TokenType.LessEqual;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Assign;
                     }
                 } else if (chr == '>') {
                     if (type == TokenType.GreaterThan) {
                         type = TokenType.BitshiftRight;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.LessThan;
                     }
                 } else if (chr == '&') {
                     if (type == TokenType.BitwiseAnd) {
                         type = TokenType.LogicalAnd;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.BitwiseAnd;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '|') {
                     if (type == TokenType.BitwiseOr) {
                         type = TokenType.LogicalOr;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     } else {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.BitwiseOr;
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '+') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Plus;
                     if (tokens.Count > 0) {
                         if (tokens[tokens.Count - 1].Type == TokenType.Number)
-                            FinishToken(tokens, ref type, ref pos, ref line, sb);
+                            FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '-') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Minus;
                     if (tokens.Count > 0) {
                         
                         if (tokens[tokens.Count - 1].Type == TokenType.Number)
-                            FinishToken(tokens, ref type, ref pos, ref line, sb);
+                            FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     }
                 } else if (chr == '*') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Multiply;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == '/') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Divide;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == '%') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.Modulo;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == '^') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.BitwiseXOr;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr == '~') {
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     type = TokenType.BitwiseNot;
-                    FinishToken(tokens, ref type, ref pos, ref line, sb);
+                    FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                 } else if (chr >= '0' && chr <= '9') {
                     if (type == TokenType.Empty || type == TokenType.Minus || type == TokenType.Plus) {
                         if (type == TokenType.Minus)
                             sb.Append('-');
                         type = TokenType.Number;
                     } else if (type != TokenType.Number && type != TokenType.Word && type != TokenType.Hexadecimal) {
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                         type = TokenType.Number;
                     }
                     sb.Append(chr);
@@ -225,7 +228,7 @@ namespace Clawsemble
                     if (type == TokenType.Empty)
                         type = TokenType.Word;
                     if (type != TokenType.CompilerDirective && type != TokenType.PreprocessorDirective && type != TokenType.Word)
-                        FinishToken(tokens, ref type, ref pos, ref line, sb);
+                        FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
                     sb.Append(chr);
                 } else {
                     type = TokenType.Invalid;
@@ -235,12 +238,12 @@ namespace Clawsemble
 				
             reader.Dispose();
 
-            FinishToken(tokens, ref type, ref pos, ref line, sb);
+            FinishToken(tokens, ref type, ref pos, ref line, ref hardBreak, sb);
             tokens.Add(new Token() { Type = TokenType.Break, Position = pos, Line = line, File = 0 });
             return tokens;
         }
 
-        private static void FinishToken(List<Token> Tokens, ref TokenType Type, ref uint Position, ref uint Line, StringBuilder Builder)
+        private static void FinishToken(List<Token> Tokens, ref TokenType Type, ref uint Position, ref uint Line, ref bool HardBreak, StringBuilder Builder)
         {
             Position++;
 
@@ -274,7 +277,8 @@ namespace Clawsemble
                     Logger.Debug(string.Format("Adding token (Type: {0}, Position: {1}, Line: {2})",
                         Type.ToString(), Position, Line));
 
-                if (Type == TokenType.Break) {
+                if (Type == TokenType.Break && HardBreak) {
+                    HardBreak = false;
                     Position = 1;
                     Line++;
                 }

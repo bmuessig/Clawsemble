@@ -13,7 +13,7 @@ namespace Clawsemble
         Data = Byte | (0x1 << 3),
         Values = Byte | (0x1 << 4),
         String = Byte | (0x1 << 5),
-        Function = Byte | (0x1 << 6),
+        Symbol = Byte | (0x1 << 6),
 
         Array = Data | Values | String,
 

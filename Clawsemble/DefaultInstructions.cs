@@ -80,9 +80,9 @@ namespace Clawsemble
             instrs.Add(new InstructionSignature("jppd", 0x45));
             instrs.Add(new InstructionSignature("js", 0x46, InstructionArgumentType.ShortLabelFw));
             instrs.Add(new InstructionSignature("jsb", 0x47, InstructionArgumentType.ShortLabelBw));
-            instrs.Add(new InstructionSignature("ca", 0x48, InstructionArgumentType.Function));
+            instrs.Add(new InstructionSignature("ca", 0x48, InstructionArgumentType.Symbol));
             instrs.Add(new InstructionSignature("cad", 0x49));
-            instrs.Add(new InstructionSignature("cl", 0x4a, InstructionArgumentType.Function));
+            instrs.Add(new InstructionSignature("cl", 0x4a, InstructionArgumentType.Symbol));
             instrs.Add(new InstructionSignature("cld", 0x4b));
             instrs.Add(new InstructionSignature("ret", 0x4c));
             instrs.Add(new InstructionSignature("add", 0x4e));
