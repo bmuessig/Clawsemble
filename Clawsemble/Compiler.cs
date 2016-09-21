@@ -873,53 +873,6 @@ namespace Clawsemble
             return binary;
         }
 
-        /*private bool ArgumentTokenToSignature(ArgumentToken Token, out InstructionArgument Output)
-        {
-
-
-
-            switch (Token.Type) {
-            case ArgumentTokenType.ByteValue:
-                Output = InstructionArgumentFlags.Byte;
-                return true;
-            case ArgumentTokenType.NumberValue:
-                Output = InstructionArgumentFlags.Number;
-                return true;
-            case ArgumentTokenType.ReferenceNumber:
-                switch (Token.Target) {
-                case ReferenceType.Label:
-                    Output = InstructionArgumentFlags.Label;
-                    return true;
-                }
-                break;
-            case ArgumentTokenType.ReferenceByte:
-                switch (Token.Target) {
-                case ReferenceType.Data:
-                    Output = InstructionArgumentFlags.Data;
-                    return true;
-                case ReferenceType.Label:
-                    if (Token.Number > 0)
-                        Output = InstructionArgumentFlags.ShortLabelFw;
-                    else
-                        Output = InstructionArgumentFlags.ShortLabelBw;
-                    return true;
-                case ReferenceType.String:
-                    Output = InstructionArgumentFlags.String;
-                    return true;
-                case ReferenceType.Symbol:
-                    Output = InstructionArgumentFlags.Symbol;
-                    return true;
-                case ReferenceType.Values:
-                    Output = InstructionArgumentFlags.Values;
-                    return true;
-                }
-                break;
-            }
-
-            Output = 0;
-            return false;
-        }*/
-
         private int FindLabel(string Name, Symbol Symbol)
         {
             for (int i = 0; i < Symbol.Instructions.Count; i++) {
