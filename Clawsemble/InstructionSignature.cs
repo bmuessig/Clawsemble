@@ -10,10 +10,10 @@ namespace Clawsemble
 
         public bool IsExtended { get; private set; }
 
-        public InstructionArgumentType[] Arguments { get; private set; }
+        public InstructionArgument[] Arguments { get; private set; }
 
         // Not extended .ctor
-        public InstructionSignature(string Mnemonic, byte Code, params InstructionArgumentType[] Arguments)
+        public InstructionSignature(string Mnemonic, byte Code, params InstructionArgument[] Arguments)
         {
             this.Mnemonic = Mnemonic;
             this.Code = Code;
@@ -22,7 +22,7 @@ namespace Clawsemble
         }
 
         // Custom .ctor
-        public InstructionSignature(string Mnemonic, byte Code, bool IsExtended, params InstructionArgumentType[] Arguments)
+        public InstructionSignature(string Mnemonic, byte Code, bool IsExtended, params InstructionArgument[] Arguments)
         {
             this.Mnemonic = Mnemonic;
             this.Code = Code;

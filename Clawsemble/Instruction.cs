@@ -28,17 +28,11 @@ namespace Clawsemble
         {
             byte size = 1; // covers the instruction itelf already
 
-            foreach (InstructionArgumentType arg in Signature.Arguments) {
-                switch (arg) {
-                // let's just have all the other values here
-                case InstructionArgumentType.Number:
-                case InstructionArgumentType.Label:
-                    size += BytesPerLong;
-                    break;
-                default: // default covers all byte values
+            foreach (InstructionArgument arg in Signature.Arguments) {
+                if (arg.Target == InstructionArgumentTarget.Byte)
                     size++;
-                    break;
-                }
+                else
+                    size += BytesPerLong;
             }
 
             return size;

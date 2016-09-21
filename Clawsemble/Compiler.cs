@@ -118,9 +118,7 @@ namespace Clawsemble
                     } else if (!foundHeader) {
                         throw new CodeError(CodeErrorType.ExpectedHeader, "Expected executable or library header!", InputTokens[ptr],
                             GetFilename(InputTokens[ptr].File));
-                    } else if (directive == "data" ||
-                               directive == "str" || directive == "string" ||
-                               directive == "vals" || directive == "values") {
+                    } else if (directive == "data" || directive == "str" || directive == "vals") {
                         // e.g.:  .dat test,123,123,123,1232,23
                         if (!IsBeforeEOF(ptr, InputTokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
@@ -138,10 +136,10 @@ namespace Clawsemble
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
 
-                        int constid = -1;
+                        byte constid = 0;
                         ReferenceType type = 0;
 
-                        if (directive == "str" || directive == "string") {
+                        if (directive == "str") {
                             if (InputTokens[++ptr].Type != TokenType.Seperator)
                                 throw new CodeError(CodeErrorType.ExpectedSeperator, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                             if (InputTokens[++ptr].Type != TokenType.String)
@@ -149,8 +147,10 @@ namespace Clawsemble
                             if (string.IsNullOrEmpty(InputTokens[ptr].Content))
                                 throw new CodeError(CodeErrorType.ArgumentInvalid, "String can't be empty!", InputTokens[ptr],
                                     GetFilename(InputTokens[ptr].File));
-                            
-                            constid = RegisterConstant(InputTokens[ptr].Content);
+
+                            if (!RegisterConstant(InputTokens[ptr].Content, out constid))
+                                throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
+                                    InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                             type = ReferenceType.String;
                         } else if (directive == "data") {
                             var data = new List<byte>();
@@ -170,9 +170,11 @@ namespace Clawsemble
                                     break;
                             }
 
-                            constid = RegisterConstant(data.ToArray());
+                            if (!RegisterConstant(data.ToArray(), out constid))
+                                throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
+                                    InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                             type = ReferenceType.Data;
-                        } else if (directive == "vals" || directive == "values") {
+                        } else if (directive == "vals") {
                             var data = new List<byte>();
 
                             // Now go for args until eof or break
@@ -198,28 +200,21 @@ namespace Clawsemble
                                 }
                             }
 
-                            constid = RegisterConstant(data.ToArray());
+                            if (!RegisterConstant(data.ToArray(), out constid))
+                                throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
+                                    InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                             type = ReferenceType.Values;
                         }
 
-                        // check constid for errors
-                        if (constid == -1) {
-                            throw new CodeError(CodeErrorType.StackUnderflow, "The array is empty!",
-                                InputTokens[ptr], GetFilename(InputTokens[ptr].File));
-                        } else if (constid == -2) {
-                            throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
-                                InputTokens[ptr], GetFilename(InputTokens[ptr].File));
-                        }
-
                         // add the reference
-                        References.Add(new NamedReference(name, type, (byte)constid));
+                        References.Add(new NamedReference(name, type, constid));
 
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
-                    } else if (directive == "mod" || directive == "module" || directive == "omod" || directive == "optmodule") {
+                    } else if (directive == "mod" || directive == "optmod") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF,
                                 InputTokens[InputTokens.Count - 1],
@@ -252,14 +247,14 @@ namespace Clawsemble
                                 InputTokens[ptr], GetFilename(InputTokens[ptr].File));
 
                         // add the slot and check whether the module is optional or not
-                        Slots.Add(slot, new ModuleSlot(module, (directive == "omd" || directive == "optmodule")));
+                        Slots.Add(slot, new ModuleSlot(module, (directive == "optmod")));
 
                         // check for break
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
-                    } else if (directive == "exi" || directive == "extinstr") {
+                    } else if (directive == "extinstr") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
@@ -290,7 +285,7 @@ namespace Clawsemble
                                 string.Format("Custom instruction code outside of extended instruction range ({0}-255)!", GlobalConstants.MaxNativeInstrs + 1),
                                 InputTokens[ptr],
                                 GetFilename(InputTokens[ptr].File));
-                        var args = new List<InstructionArgumentType>();
+                        var args = new List<InstructionArgument>();
                         // Now go for args until eof or break
                         while (IsBeforeEOF(ptr, InputTokens.Count, 2)) { // 2 because seperator, then another signature
                             if (InputTokens[++ptr].Type != TokenType.Seperator)
@@ -301,12 +296,12 @@ namespace Clawsemble
                                 throw new CodeError(CodeErrorType.WordInvalid,
                                     "Custom instruction signature argument type can't be empty!", InputTokens[ptr],
                                     GetFilename(InputTokens[ptr].File));
-                            InstructionArgumentType type;
-                            if (!Enum.TryParse(InputTokens[ptr].Content.Trim(), true, out type))
+                            InstructionArgument arg;
+                            if (!InstructionArgument.TryParse(InputTokens[ptr].Content.Trim(), out arg))
                                 throw new CodeError(CodeErrorType.ConstantInvalid, "Invalid custom instruction signature argument!",
                                     InputTokens[ptr],
                                     GetFilename(InputTokens[ptr].File));
-                            args.Add(type);
+                            args.Add(arg);
 
                             if (IsBeforeEOF(ptr, InputTokens.Count)) {
                                 if (InputTokens[ptr + 1].Type == TokenType.Break)
@@ -320,6 +315,49 @@ namespace Clawsemble
                         if (IsBeforeEOF(ptr, InputTokens.Count)) {
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
+                        }
+                    } else if (directive == "extsym" || directive == "extsymbol") {
+                        // collect the name and id of the symbol
+                        if (!IsBeforeEOF(ptr, tokBuf.Count, 3))
+                            throw new CodeError(CodeErrorType.UnexpectedEOF,
+                                tokBuf[tokBuf.Count - 1],
+                                GetFilename(tokBuf[tokBuf.Count - 1].File));
+                        if (tokBuf[++ptr].Type != TokenType.Word)
+                            throw new CodeError(CodeErrorType.ExpectedWord, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        string name;
+                        byte id = 0;
+
+                        if (string.IsNullOrWhiteSpace(tokBuf[ptr].Content))
+                            throw new CodeError(CodeErrorType.WordInvalid, "Symbol name can't be empty!", tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        name = tokBuf[ptr].Content.Trim();
+
+                        // does the extern symbol name already exist?
+                        if (!IsNameAvailable(name))
+                            throw new CodeError(CodeErrorType.WordCollision,
+                                string.Format("Name '{0}' already in use!", name),
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        // now we want to get the function id
+                        if (tokBuf[++ptr].Type != TokenType.Seperator)
+                            throw new CodeError();
+                        if (tokBuf[++ptr].Type != TokenType.Number)
+                            throw new CodeError(CodeErrorType.ExpectedNumber, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+                        if (!byte.TryParse(tokBuf[ptr].Content, out id))
+                            throw new CodeError(CodeErrorType.ArgumentInvalid, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        // check range
+                        if (id > 254)
+                            throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
+                                tokBuf[ptr], GetFilename(tokBuf[ptr].File));
+
+                        // Save the extern symbol
+                        References.Add(new NamedReference(name, ReferenceType.ExternSymbol, id));
+
+                        // check for break
+                        if (IsBeforeEOF(ptr, tokBuf.Count)) {
+                            if (tokBuf[++ptr].Type != TokenType.Break)
+                                throw new CodeError(CodeErrorType.ExpectedBreak, tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                         }
                     } else if (directive == "title" || directive == "author" || directive == "description") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count))
@@ -347,7 +385,7 @@ namespace Clawsemble
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
-                    } else if (directive == "minvstack" || directive == "mincstack" || directive == "minpool") {
+                    } else if (directive == "minvstack" || directive == "mincstack" || directive == "minpoolsz") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count))
                             throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
@@ -364,7 +402,7 @@ namespace Clawsemble
                             Header.MinVarstackSize = value;
                         } else if (directive == "mincstack") {
                             Header.MinCallstackSize = value;
-                        } else if (directive == "minpool") {
+                        } else if (directive == "minpoolsz") {
                             Header.MinPoolSize = value;
                         }
 
@@ -373,7 +411,7 @@ namespace Clawsemble
                             if (InputTokens[++ptr].Type != TokenType.Break)
                                 throw new CodeError(CodeErrorType.ExpectedBreak, InputTokens[ptr], GetFilename(InputTokens[ptr].File));
                         }
-                    } else if (directive == "ver" || directive == "version" || directive == "minrt" || directive == "minruntime") {
+                    } else if (directive == "version" || directive == "minrt") {
                         if (!IsBeforeEOF(ptr, InputTokens.Count, 3))
                             throw new CodeError(CodeErrorType.UnexpectedEOF, InputTokens[InputTokens.Count - 1],
                                 GetFilename(InputTokens[InputTokens.Count - 1].File));
@@ -411,11 +449,11 @@ namespace Clawsemble
                         }
                             
                         // write the data
-                        if (directive == "version" || directive == "ver") {
+                        if (directive == "version") {
                             Header.Version.Major = major;
                             Header.Version.Minor = minor;
                             Header.Version.Revision = revision;
-                        } else if (directive == "minrt" || directive == "minruntime") {
+                        } else if (directive == "minrt") {
                             Header.MinRuntimeVersion.Major = major;
                             Header.MinRuntimeVersion.Minor = minor;
                             Header.MinRuntimeVersion.Revision = revision;
@@ -458,7 +496,7 @@ namespace Clawsemble
                         InputTokens[ptr], GetFilename(InputTokens[ptr].File));
             }
 
-            NamedReference currRef = new NamedReference(ReferenceType.Symbol);
+            NamedReference currRef = new NamedReference(ReferenceType.InternSymbol);
             Symbol currSym = new Symbol();
             Instruction currInstr = new Instruction();
 
@@ -548,7 +586,7 @@ namespace Clawsemble
                                 throw new CodeError(CodeErrorType.ConstantRange, "Symbols can only use slots 0 to 254!",
                                     tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                             string collName;
-                            if (SymbolIdExists(id, out collName)) {
+                            if (IntSymbolIdExists(id, out collName)) {
                                 if (string.IsNullOrEmpty(collName))
                                     throw new CodeError(CodeErrorType.ArgumentInvalid,
                                         string.Format("Fixed slot {0} already in use by another fixed symbol!", fixid),
@@ -573,25 +611,20 @@ namespace Clawsemble
                             currSym = new Symbol(id);
                         else
                             currSym = new Symbol();
-                        currRef = new NamedReference(name, ReferenceType.Symbol);
+                        currRef = new NamedReference(name, ReferenceType.InternSymbol);
                     } else
                         throw new CodeError(CodeErrorType.DirectiveUnknown, "Unknown compiler directive!",
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
                 } else if (tokBuf[ptr].Type == TokenType.String) {
-                    if (string.IsNullOrEmpty(tokBuf[ptr].Content))
-                        throw new CodeError(CodeErrorType.ArgumentInvalid, "String can't be empty!", tokBuf[ptr],
-                            GetFilename(tokBuf[ptr].File));
-
-                    int constid = RegisterConstant(tokBuf[ptr].Content);
-                    if (constid == -2)
+                    byte constid;
+                    if (!RegisterConstant(tokBuf[ptr].Content, out constid))
                         throw new CodeError(CodeErrorType.StackOverflow, "Too many constants (max. 255 per file)!",
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
-                    
                     if (string.IsNullOrEmpty(currInstr.Signature.Mnemonic)) // no instruction encountered yet
                         throw new CodeError(CodeErrorType.ExpectedInstruction, "String without previous instruction!",
                             tokBuf[ptr], GetFilename(tokBuf[ptr].File));
 
-
+                    currInstr.Arguments.Add(new ArgumentToken(constid, ReferenceType.String, tokBuf[ptr].Position, tokBuf[ptr].Line, tokBuf[ptr].File));
                 } else if (tokBuf[ptr].Type == TokenType.Word) {
                     if (string.IsNullOrEmpty(currRef.Name)) // no symbol encountered yet
                         throw new CodeError(CodeErrorType.ExpectedSymbol, "No symbol previously defined!",
@@ -669,7 +702,7 @@ namespace Clawsemble
                 NamedReference refr;
                 if (!FindReference("main", out refr, false))
                     throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
-                if (refr.Type != ReferenceType.Symbol)
+                if (refr.Type != ReferenceType.InternSymbol)
                     throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
             } else if (!foundMain && Symbols.Count == 1) // explicitly set the only function as main
                 Symbols[0].SetIndex(0);
@@ -677,7 +710,7 @@ namespace Clawsemble
             // Now auto-id the remaining symbols
             foreach (Symbol sym in Symbols) {
                 if (!sym.IsIndexSet) {
-                    int autoindex = SymbolFreeId();
+                    int autoindex = IntSymbolFreeId();
                     if (autoindex < 0)
                         throw new CodeError(CodeErrorType.StackOverflow, "Too many symbols (max. 255 per file)!");
                     sym.SetIndex((byte)autoindex);
@@ -728,8 +761,8 @@ namespace Clawsemble
                             }
 
                             // now check if it's a label
-                            int lblid = FindLabel(arg.String, sym);
-                            if (lblid < 0) // check if the label was found
+                            int targeti = FindLabel(arg.String, sym);
+                            if (targeti < 0) // check if the label was found
                                 throw new CodeError(CodeErrorType.ArgumentInvalid,
                                     string.Format("Can't resolve the reference to '{0}'!", arg.String),
                                     arg.Position, arg.Line, GetFilename(arg.File));
@@ -747,10 +780,10 @@ namespace Clawsemble
                              * ...
                              * */
 
-                            // FIXME; does not work
-
                             // offset to the token we want to jump to the beginning of
-                            int tokoffset = lblid - insti;
+                            // if we jump back, don't subtract, otherwise subtract the current token from it
+                            // TODO: confirm that this actually works the way it is supposed to
+                            int tokoffset = ((targeti <= insti) ? (targeti - insti) : (targeti - insti - 2));
                             int binoffset = 0;
 
                             if (tokoffset >= 0) {
@@ -764,7 +797,7 @@ namespace Clawsemble
                             }
 
                             // now lets save the binary offset as our new argument
-                            arg.Set(tokoffset, ReferenceType.Label);
+                            arg.Set((long)binoffset, ReferenceType.Label);
                         }
                     }
                 }
@@ -793,36 +826,28 @@ namespace Clawsemble
                     symbytes.Add(instr.Signature.Code);
 
                     for (int argi = 0; argi < instr.Arguments.Count; argi++) {
-                        InstructionArgumentType sigarg = instr.Signature.Arguments[argi], tokarg;
+                        InstructionArgument sigarg = instr.Signature.Arguments[argi];
+                        ArgumentToken tokarg = instr.Arguments[argi];
 
-                        if (!ArgumentTokenToSignature(instr.Arguments[argi], out tokarg))
+                        // Check if the type matches and convert the argtoken to the correct output format
+                        if (!sigarg.NormalizeArg(ref tokarg))
                             throw new CodeError(CodeErrorType.ArgumentInvalid,
-                                string.Format("Unknown type ({0}, {1}) of argument #{2} in instruction {3}!", 
-                                    instr.Arguments[argi].Type.ToString(), instr.Arguments[argi].Target.ToString(),
-                                    argi, instr.Signature.Mnemonic),
-                                instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
-
-                        // Check if we can do type conversion
-                        if (tokarg == InstructionArgumentType.Byte && sigarg == InstructionArgumentType.Number) {
-                            tokarg = InstructionArgumentType.Number;
-                            instr.Arguments[argi].Set((long)instr.Arguments[argi].Byte);
-                        }
-
-                        // Fix backwards jumping labels and their type
-                        if (tokarg == InstructionArgumentType.ShortLabelBw || tokarg == InstructionArgumentType.ShortLabelFw)
-                            instr.Arguments[argi].Set((byte)Math.Abs(instr.Arguments[argi].Number), ReferenceType.Label);
-
-                        // Check if any of the valid argument types match
-                        if ((sigarg & tokarg) == 0 && sigarg != tokarg)
-                            throw new CodeError(CodeErrorType.ArgumentInvalid,
-                                string.Format("Type of argument #{0} ({1}), in instruction {2}, invalid. Expected argument of type {3}!",
-                                    argi, tokarg.ToString(), instr.Signature.Mnemonic, sigarg.ToString()),
-                                instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
+                                string.Format("Argument #{0} ({1}), in instruction {2}, invalid. Expected argument of type {3}!",
+                                    argi, tokarg.Type.ToString(), instr.Signature.Mnemonic, sigarg.ToString()),
+                                tokarg.Position, tokarg.Line, GetFilename(tokarg.File));
 
                         // write arguments to bytecode
-                        if ((sigarg & InstructionArgumentType.Byte) > 0) { // write byte
+                        InstructionArgumentTarget sigtarget = sigarg.Target;
+                        if (sigtarget == InstructionArgumentTarget.Byte) { // write byte
                             symbytes.Add(instr.Arguments[argi].Byte);
-                        } else { // write number
+                        } else if (sigtarget == InstructionArgumentTarget.UnsignedNumber) { // write unsigmed number
+                            bool clip;
+                            symbytes.AddRange(UNumberToBytes(instr.Arguments[argi].Number, out clip));
+
+                            if (clip)
+                                throw new CodeError(CodeErrorType.ConstantRange, "Constant too large or too small for the selected target bitness!",
+                                    instr.Arguments[argi].Position, instr.Arguments[argi].Line, GetFilename(instr.Arguments[argi].File));
+                        } else { // write signed number
                             bool clip;
                             symbytes.AddRange(NumberToBytes(instr.Arguments[argi].Number, out clip));
 
@@ -848,41 +873,44 @@ namespace Clawsemble
             return binary;
         }
 
-        private bool ArgumentTokenToSignature(ArgumentToken Token, out InstructionArgumentType Output)
+        /*private bool ArgumentTokenToSignature(ArgumentToken Token, out InstructionArgument Output)
         {
+
+
+
             switch (Token.Type) {
             case ArgumentTokenType.ByteValue:
-                Output = InstructionArgumentType.Byte;
+                Output = InstructionArgumentFlags.Byte;
                 return true;
             case ArgumentTokenType.NumberValue:
-                Output = InstructionArgumentType.Number;
+                Output = InstructionArgumentFlags.Number;
                 return true;
             case ArgumentTokenType.ReferenceNumber:
                 switch (Token.Target) {
                 case ReferenceType.Label:
-                    Output = InstructionArgumentType.Label;
+                    Output = InstructionArgumentFlags.Label;
                     return true;
                 }
                 break;
             case ArgumentTokenType.ReferenceByte:
                 switch (Token.Target) {
                 case ReferenceType.Data:
-                    Output = InstructionArgumentType.Data;
+                    Output = InstructionArgumentFlags.Data;
                     return true;
                 case ReferenceType.Label:
                     if (Token.Number > 0)
-                        Output = InstructionArgumentType.ShortLabelFw;
+                        Output = InstructionArgumentFlags.ShortLabelFw;
                     else
-                        Output = InstructionArgumentType.ShortLabelBw;
+                        Output = InstructionArgumentFlags.ShortLabelBw;
                     return true;
                 case ReferenceType.String:
-                    Output = InstructionArgumentType.String;
+                    Output = InstructionArgumentFlags.String;
                     return true;
                 case ReferenceType.Symbol:
-                    Output = InstructionArgumentType.Symbol;
+                    Output = InstructionArgumentFlags.Symbol;
                     return true;
                 case ReferenceType.Values:
-                    Output = InstructionArgumentType.Values;
+                    Output = InstructionArgumentFlags.Values;
                     return true;
                 }
                 break;
@@ -890,7 +918,7 @@ namespace Clawsemble
 
             Output = 0;
             return false;
-        }
+        }*/
 
         private int FindLabel(string Name, Symbol Symbol)
         {
@@ -918,10 +946,10 @@ namespace Clawsemble
                 return new InstructionSignature();
         }
 
-        private bool SymbolIdExists(byte Id, out string Name)
+        private bool IntSymbolIdExists(byte Id, out string Name)
         {
             foreach (NamedReference refr in References) {
-                if (refr.Type == ReferenceType.Symbol && refr.Value == Id) {
+                if (refr.Type == ReferenceType.InternSymbol && refr.Value == Id) {
                     Name = refr.Name;
                     return true;
                 }
@@ -931,21 +959,21 @@ namespace Clawsemble
             return false;
         }
 
-        private bool SymbolIdExists(byte Id)
+        private bool IntSymbolIdExists(byte Id)
         {
             foreach (NamedReference refr in References) {
-                if (refr.Type == ReferenceType.Symbol && refr.Value == Id)
+                if (refr.Type == ReferenceType.InternSymbol && refr.Value == Id)
                     return true;
             }
 
             return false;
         }
 
-        private int SymbolFreeId()
+        private int IntSymbolFreeId()
         {
             byte id = 0;
             for (; id <= 254; id++) {
-                if (!SymbolIdExists(id))
+                if (!IntSymbolIdExists(id))
                     return id;
             }
 
@@ -1030,31 +1058,38 @@ namespace Clawsemble
             return false;
         }
 
-        private int RegisterConstant(byte[] Constant)
+        private bool RegisterConstant(byte[] Constant, out byte ID)
         {
-            /* *
-             * Returns:
-             * >= 0: All ok
-             * -1:   Size error
-             * -2:   No more constants left
-             * */
-             
-            if (Constant.Length < 1)
-                return -1;
-            if (Constants.Contains(Constant)) {
-                int ptr = 0;
-                foreach (byte[] entry in Constants) {
-                    if (entry == Constant)
-                        return ptr;
-                    ptr++;
-                }
-                return -1; // just to make the compiler happy
-            } else {
-                if (Constants.Count >= 255)
-                    return -2;
-                Constants.Add(Constant);
-                return Constants.Count - 1;
+            if (Constant.Length < 1) {
+                ID = byte.MaxValue;
+                return true;
             }
+            
+            byte ptr = 0;
+            foreach (byte[] entry in Constants) {
+                if (entry == Constant) {
+                    ID = ptr;
+                    return true;
+                }
+                ptr++;
+            }
+
+            if (Constants.Count >= 255) {
+                ID = 0;
+                return false;
+            }
+            Constants.Add(Constant);
+            ID = (byte)(Constants.Count - 1);
+            return true;
+        }
+
+        private bool RegisterConstant(string Constant, out byte ID)
+        {
+            if (string.IsNullOrEmpty(Constant)) {
+                ID = byte.MaxValue;
+                return true;
+            }
+            return RegisterConstant(System.Text.ASCIIEncoding.ASCII.GetBytes(Constant), out ID);
         }
 
         private byte[] NumberToBytes(long val, out bool Clip)
@@ -1080,9 +1115,27 @@ namespace Clawsemble
             return null;
         }
 
-        private int RegisterConstant(string Constant)
+        private byte[] UNumberToBytes(long val, out bool Clip)
         {
-            return RegisterConstant(System.Text.ASCIIEncoding.ASCII.GetBytes(Constant));
+            BinaryType bits = BinaryType & BinaryType.Bits;
+
+            switch (bits) {
+            case BinaryType.Bits8:
+                Clip = (val < byte.MinValue || val > byte.MaxValue);
+                return BitConverter.GetBytes((byte)val);
+            case BinaryType.Bits16:
+                Clip = (val < ushort.MinValue || val > ushort.MaxValue);
+                return BitConverter.GetBytes((ushort)val);
+            case BinaryType.Bits32:
+                Clip = (val < uint.MinValue || val > uint.MaxValue);
+                return BitConverter.GetBytes((uint)val);
+            case BinaryType.Bits64:
+                Clip = (val < (long)ulong.MinValue);
+                return BitConverter.GetBytes((ulong)val);
+            }
+
+            Clip = false;
+            return null;
         }
 
         private string GetFilename(uint FileID)

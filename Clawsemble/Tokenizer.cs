@@ -245,8 +245,6 @@ namespace Clawsemble
 
         private static void FinishToken(List<Token> Tokens, ref TokenType Type, ref uint Position, ref uint Line, ref bool HardBreak, StringBuilder Builder)
         {
-            Position++;
-
             if (Builder.Length > 0) {
                 string content;
 
@@ -262,7 +260,7 @@ namespace Clawsemble
                 Tokens.Add(new Token() {
                     Type = Type,
                     Content = content,
-                    Position = Position,
+                    Position = ++Position,
                     Line = Line,
                     File = 0
                 });
@@ -271,7 +269,7 @@ namespace Clawsemble
                     Logger.Debug(string.Format("Adding token (Type: {0}, Content: '{1}', Position: {2}, Line: {3})",
                         Type.ToString(), content, Position, Line));
             } else if (Type != TokenType.Empty) {
-                Tokens.Add(new Token() { Type = Type, Position = Position, Line = Line, File = 0 });
+                Tokens.Add(new Token() { Type = Type, Position = ++Position, Line = Line, File = 0 });
 
                 if (Logger.Priority == LogPriority.Debug)
                     Logger.Debug(string.Format("Adding token (Type: {0}, Position: {1}, Line: {2})",

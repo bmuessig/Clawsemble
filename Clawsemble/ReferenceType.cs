@@ -4,7 +4,8 @@ namespace Clawsemble
 {
     public enum ReferenceType
     {
-        Symbol,
+        InternSymbol,
+        ExternSymbol,
         Data,
         Values,
         String,

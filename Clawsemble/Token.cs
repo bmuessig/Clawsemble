@@ -8,7 +8,6 @@ namespace Clawsemble
         public string Content;
         public uint File;
         public uint Line;
-        // FIXME: stays at 10 all the time
         public uint Position;
     }
 }

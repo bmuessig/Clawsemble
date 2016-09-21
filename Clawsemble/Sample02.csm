@@ -10,7 +10,7 @@
     .lbl forloop_bgn  ; new label (start of for-loop)
         dp  ; duplicate the uppermost value to save it
         ltc num_values  ; check if counter is less than num_values (3)
-        jpn forloop_end  ; if last comparision was false end the for-loop
+        jpn forloop_end  ; if last comparision was false end the for-loop ; jpn 10
         sw  ; swap the counter with the sum
         ld 1  ; copy the counter onto the top of the stack
         lxd  ; load value in the values array at the counter position
@@ -18,7 +18,7 @@
         sw  ; swap to the counter again
         icr  ; increment the counter
         jp forloop_bgn  ; jump to the begin of the for-loop again
-    .lbl forloop_end  ; end of the for loop
+    .lbl forloop_end  ; end of the for loop ; jp -17
         dv  ; drop the counter
         divc num_values  ; divide the sum by the number of values
         dbdv  ; print the result to the debug console

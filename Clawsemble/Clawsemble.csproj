@@ -46,7 +46,6 @@
     <Compile Include="CodeError.cs" />
     <Compile Include="CodeErrorType.cs" />
     <Compile Include="ArbitraryStack.cs" />
-    <Compile Include="InstructionArgumentType.cs" />
     <Compile Include="DefaultInstructions.cs" />
     <Compile Include="Symbol.cs" />
     <Compile Include="ModuleSlot.cs" />
@@ -67,6 +66,9 @@
     <Compile Include="GlobalConstants.cs" />
     <Compile Include="BitbakeErrorType.cs" />
     <Compile Include="BitbakeError.cs" />
+    <Compile Include="InstructionArgument.cs" />
+    <Compile Include="InstructionArgumentType.cs" />
+    <Compile Include="InstructionArgumentTarget.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

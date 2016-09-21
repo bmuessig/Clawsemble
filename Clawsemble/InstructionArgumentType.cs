@@ -4,32 +4,40 @@ namespace Clawsemble
 {
     public enum InstructionArgumentType
     {
-        Number = 0x0,
-        Label = Number | (0x1 << 1),
+        // The output type is determined by the highest possible argument
+        // Values lower that than will simply be converted
+        // Numbers as arguments can be disabled or enabled
 
-        Byte = 0x1,
-        ShortLabelFw = Byte | (0x1 << 1),
-        ShortLabelBw = Byte | (0x1 << 2),
-        Data = Byte | (0x1 << 3),
-        Values = Byte | (0x1 << 4),
-        String = Byte | (0x1 << 5),
-        Symbol = Byte | (0x1 << 6),
-
-        Array = Data | Values | String,
-
-        /* *
-          * s16/s32/s64 bit numbers:
-          *  * simple value    (0b0000000)
-          *  * label offset    (0b0000010)
-          * u8 bit number
-          *  * simple value    (0b0000001)
-          *  * label fw offset (0b0000011)
-          *  * label bw offset (0b0000101)
-          *  * data            (0b0001001)
-          *  * values          (0b0010001)
-          *  * string          (0b0100001)
-          *  * function        (0b1000001)
-          * */
+        // Allow anything (a number will be written)
+        Anything,
+        // Allow number and byte constants (a number will be written)
+        Number,
+        // Allow unsigned number and byte constants (an unsigned number will be written)
+        UnsignedNumber,
+        // Just allow byte constants (a byte will be written)
+        Byte,
+        // Mutually exclusive, type number
+        Label,
+        // Mutually exclusive, type byte
+        ShortLabelFw,
+        // Mutually exclusive, type byte
+        ShortLabelBw,
+        // Mutually exclusive, type byte
+        InternSymbol,
+        // Mutually exclusive, type byte
+        ExternSymbol,
+        // Mutually exclusive, type byte
+        Module,
+        // Only non-exclusive with values and string, type byte
+        Data,
+        // Only non-exclusive with data and string, type byte
+        Values,
+        // Only non-exclusive with data and values, type byte
+        String,
+        // Data + Values + String, type byte
+        Array,
+        // Data + String
+        ByteArray,
     }
 }
 
