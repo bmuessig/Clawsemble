@@ -42,17 +42,29 @@ namespace Clawsemble
             // Start writing the magic numbers CAFE + (CWX || CWL)
             Stream.WriteByte(0xca);
             Stream.WriteByte(0xfe);
-
-            // Write the type
             Stream.WriteByte((byte)'C');
             Stream.WriteByte((byte)'W');
+
+            // Write the type
             if ((Type & BinaryType.Library) > 0)
                 Stream.WriteByte((byte)'L'); // we got a library
             else
                 Stream.WriteByte((byte)'X'); // we got an executable
 
             // Write the bitness
-            Stream.WriteByte((byte)(Type & BinaryType.Bits));
+            switch ((Type & BinaryType.Bits)) {
+            case BinaryType.Bits16:
+                Stream.WriteByte((byte)'S');
+                break;
+            case BinaryType.Bits32:
+                Stream.WriteByte((byte)'I');
+                break;
+            case BinaryType.Bits64:
+                Stream.WriteByte((byte)'L');
+                break;
+            default:
+                throw new BitbakeError(BitbakeErrorType.InvalidBinaryType);
+            }
 
             // Let's write the meta information now
             Meta.Bake(Stream);

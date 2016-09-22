@@ -11,7 +11,8 @@ namespace Clawsemble
         SymbolLength,
         ConstantOutOfBounds,
         SlotOutOfBounds,
-        SymbolOutOfBounds
+        SymbolOutOfBounds,
+        InvalidBinaryType
     }
 }
 
