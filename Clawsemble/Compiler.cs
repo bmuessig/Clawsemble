@@ -700,8 +700,12 @@ namespace Clawsemble
             // Check if we got a valid main symbol
             if (!foundMain && Symbols.Count > 1) {
                 NamedReference refr;
-                if (!FindReference("main", out refr, false))
-                    throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
+                if (!FindReference("entry", out refr, false)) {
+                    if (!FindReference("init", out refr, false)) {
+                        if (!FindReference("main", out refr, false))
+                            throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
+                    }
+                }
                 if (refr.Type != ReferenceType.InternSymbol)
                     throw new CodeError(CodeErrorType.ExpectedSymbol, "Missing an explicit main symbol!");
             } else if (!foundMain && Symbols.Count == 1) // explicitly set the only function as main
