@@ -121,9 +121,9 @@ namespace Clawsemble
             instrs.Add(new InstructionSignature("rev", 0x6e));
             instrs.Add(new InstructionSignature("cbs", 0x6f));
             instrs.Add(new InstructionSignature("cbz", 0x70));
-            instrs.Add(new InstructionSignature("land", 0x71));
-            instrs.Add(new InstructionSignature("lor", 0x72));
-            instrs.Add(new InstructionSignature("lnot", 0x73));
+            instrs.Add(new InstructionSignature("lnot", 0x71));
+            instrs.Add(new InstructionSignature("land", 0x72));
+            instrs.Add(new InstructionSignature("lor", 0x73));
             instrs.Add(new InstructionSignature("eq", 0x74));
             instrs.Add(new InstructionSignature("neq", 0x75));
             instrs.Add(new InstructionSignature("lt", 0x76));
