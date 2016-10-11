@@ -129,7 +129,7 @@ namespace Clawsemble
             instrs.Add(new InstructionSignature("lt", 0x76));
             instrs.Add(new InstructionSignature("lteq", 0x77));
             instrs.Add(new InstructionSignature("gt", 0x78));
-            instrs.Add(new InstructionSignature("gteq", 0x79, new InstructionArgument(InstructionArgumentType.Number)));
+            instrs.Add(new InstructionSignature("gteq", 0x79));
             instrs.Add(new InstructionSignature("eqc", 0x7a, new InstructionArgument(InstructionArgumentType.Number)));
             instrs.Add(new InstructionSignature("neqc", 0x7b, new InstructionArgument(InstructionArgumentType.Number)));
             instrs.Add(new InstructionSignature("ltc", 0x7c, new InstructionArgument(InstructionArgumentType.Number)));
