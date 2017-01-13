@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Clawsemble")]
-[assembly: AssemblyCopyright("Copyright © 2017, Benedikt Müssig")]
+[assembly: AssemblyCopyright("Copyright © 2015-2017, Benedikt Müssig")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
