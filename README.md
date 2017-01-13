@@ -1,4 +1,4 @@
 # Clawsemble
-C# based assembler for Claw
+Clawsemble is the official assembler for the Claw development platform. It is written in C# and therefore runs on just about any computer platform, including Windows, Linux and MacOS and processor architecture.
 
-Use MonoDevelop to compile. Should work on Windows, Linux, Mac and other .NET compatible platforms.
+To compile this project you can use Monodevelop/Xamarin Studio or Visual Studio 2010 or later.
