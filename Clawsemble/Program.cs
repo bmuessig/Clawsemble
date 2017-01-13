@@ -77,7 +77,7 @@ namespace Clawsemble
             }   
             Logger.ExtInfo("done!", true);
 
-            Logger.ExtInfo("All operations successfully completed :)");
+            Logger.ExtInfo("All operations completed successfully :)");
         }
     }
 }
