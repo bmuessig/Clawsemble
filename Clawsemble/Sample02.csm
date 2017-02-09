@@ -1,5 +1,7 @@
 ﻿.CWX:16  ;16 bit executable, you can also use 32 and 64-bit
 
+.title "Hello World"
+
 #define num_values 3  ; number of values is 3
 .vals values, {10, 5, 2}  ; constant short (16-bit) array with the values
 
